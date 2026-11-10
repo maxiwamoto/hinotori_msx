@@ -1363,7 +1363,7 @@ FIREBIRD_LOGO_CREDITS_GFX_DESCRIPTOR:
 	DB	40h,01h,00h	; 64 tiles -> dst 01h, attr 00h
 	DW	FIREBIRD_LOGO_2BPP_TILES	; Bank 13 2bpp source
 	DB	8Dh
-	DB	06h,41h,00h	; 6 tiles -> dst 41h, attr 00h
+	DB	10h,41h,00h	; 16 tiles -> dst 41h..50h, including FIN lettering
 	DW	FIREBIRD_LOGO_2BPP_TILES + 0400h	; Bank 13 2bpp source
 	DB	8Dh
 	DB	00h	; End of descriptor

@@ -487,7 +487,7 @@ MAIN_FONT_ENGLISH_LOWERCASE_1BPP:
 	DB	00h,66h,66h,7Eh,3Ch,18h,18h,18h
 	DB	00h,7Fh,07h,0Eh,1Ch,38h,70h,7Fh
 
-; English Title/Ending FIREBIRD 70-tile 2bpp logo tileset (1,120B)
+; English Title/Ending FIREBIRD and FIN 80-tile 2bpp tileset (1,280B)
 FIREBIRD_LOGO_2BPP_TILES:
 	DB	00h,00h,00h,00h,3Fh,3Fh,20h,3Fh,20h,3Fh,30h,3Fh,10h,1Fh,10h,1Fh
 	DB	00h,00h,00h,00h,FFh,FFh,00h,FFh,00h,FFh,00h,FFh,00h,FFh,FFh,FFh
@@ -559,6 +559,23 @@ FIREBIRD_LOGO_2BPP_TILES:
 	DB	00h,66h,00h,66h,00h,7Eh,00h,3Ch,00h,18h,00h,18h,00h,18h,00h,00h
 	DB	00h,7Fh,00h,07h,00h,0Eh,00h,1Ch,00h,38h,00h,70h,00h,7Fh,00h,00h
 
+; Reserve tile 46h: the original logo data contains 69 tiles, not 70.
+	DS	0010h,00h
+
+; Tiles 47h..50h complete the original English translation's FIN lettering.
+; F/I reuse the existing logo tiles; these masks preserve the original FIN pixels.
+ENDING_FIN_EXTRA_TILES_2BPP:
+	DB	00h,00h,00h,00h,00h,00h,00h,E7h,00h,E7h,00h,C3h,00h,C1h,00h,C1h
+	DB	00h,00h,00h,00h,00h,00h,00h,C0h,00h,E0h,00h,F0h,00h,F0h,00h,F8h
+	DB	00h,00h,00h,00h,00h,00h,00h,7Eh,00h,7Eh,00h,3Ch,00h,3Ch,00h,3Ch
+	DB	00h,C1h,00h,C1h,00h,C1h,00h,C1h,00h,C1h,00h,C1h,00h,C1h,00h,C1h
+	DB	00h,FCh,00h,FCh,00h,FEh,00h,FFh,00h,FFh,00h,FFh,00h,EFh,00h,E7h
+	DB	00h,3Ch,00h,3Ch,00h,3Ch,00h,3Ch,00h,3Ch,00h,BCh,00h,FCh,00h,FCh
+	DB	00h,E7h,00h,E3h,00h,E1h,00h,E1h,00h,E0h,00h,E0h,00h,E0h,00h,E0h
+	DB	00h,FCh,00h,FCh,00h,FCh,00h,FCh,00h,FCh,00h,7Ch,00h,7Ch,00h,3Ch
+	DB	00h,C1h,00h,E3h,00h,E3h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	00h,3Ch,00h,3Eh,00h,3Eh,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+
 ; 18x4 tilemap (72B) for English FIREBIRD logo box
 FIREBIRD_LOGO_TILEMAP_18X4:
 	DB	01h,02h,03h,04h,05h,06h,01h,02h,07h,05h,06h,08h,04h,05h,06h,01h,09h,0Ah
@@ -570,9 +587,12 @@ FIREBIRD_LOGO_TILEMAP_18X4:
 PHOENIX_KARMA_SUBTITLE_TEXT:
 	DB	3Fh,33h,30h,00h,3Bh,33h,3Ah,30h,39h,34h,43h,00h,3Eh,2Ch,32h,2Ch
 
-; English Ending Scene 2 "THE END" 4x2 tilemap (8B)
-ENDING_THE_END_TILEMAP_4X2:
-	DB	01h,02h,0Bh,0Ch,0Bh,17h,21h,22h
+; Complete 48x32 FIN from the original English ending, centered at X=68h.
+ENDING_FIN_TILEMAP_6X4:
+	DB	01h,02h,03h,47h,48h,49h
+	DB	0Bh,0Ch,0Dh,4Ah,4Bh,4Ch
+	DB	0Bh,17h,0Dh,4Ah,4Dh,4Eh
+	DB	21h,22h,23h,4Fh,25h,50h
 
 	DS	7D4Bh - $,FFh
 	DS	7D4Bh - $,FFh

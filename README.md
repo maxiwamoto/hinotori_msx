@@ -7,7 +7,7 @@ the sixteen physical 8 KiB ROM banks and their build dependencies.
 ## Play Enhanced without compiling
 
 **Hinotori Enhanced is released.** Download one of the three IPS patches from
-the [v1.0.0 release](https://github.com/maxiwamoto/hinotori_msx/releases/tag/v1.0.0):
+the [v1.0.1 release](https://github.com/maxiwamoto/hinotori_msx/releases/tag/v1.0.1):
 
 - `hinotori-main-to-enhanced.ips` for the original Main `(J)` ROM.
 - `hinotori-a1-to-enhanced.ips` for the original `(J) [a1]` ROM.
@@ -32,14 +32,16 @@ loading a new build: older emulator states restore older RAM code and settings.
 | `main` | Original Japanese Main dump | `D723F2EB1C887DB5448FD56BE5E7C57E60D88E63` |
 | `a1` | Original Japanese alternate revision | `612C18616BC800D9EB69B9DA3CD29ECA31F50C1C` |
 | `a2` | Archival Main-based alternate dump, including its incorrect music-loop pointer | `300F20ADDE3941AB10EB158DB48250E8E856A911` |
-| `enhanced` | A1-based enhancements; Japanese/English selection at runtime | `13266235D64DA99092E32543137EE0972D96328A` |
+| `enhanced` | A1-based enhancements; Japanese/English selection at runtime | `CAB638A3D4ACEB555E918C998143143766FB374D` |
 
 Enhanced adds MSX2+ hardware horizontal scrolling, border masking, automatic
 turbo support, restored Enemy 16h
 encounters, and fixes including the Level 4 boss-tablet palette and Game Master
 title-screen restoration. This release also fixes duplicated Level 3 shooting
 heads during horizontal scrolling and the English ending's freeze before the
-credits. It is still being play-tested. Main/A1 stay original;
+credits. Version 1.0.1 restores the original English FIN lettering and adds
+ENHANCED VERSION / MAX IWAMOTO to the credits in both language modes.
+It is still being play-tested. Main/A1 stay original;
 A2 reproduces Main's one-byte alteration and does not include A1's fixes.
 
 ## Contents
