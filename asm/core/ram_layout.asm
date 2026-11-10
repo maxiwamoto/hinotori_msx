@@ -523,6 +523,7 @@ BIOS_EXPTBL:       EQU	FCC1h	; MSX BIOS 4-byte slot expansion flags table (follo
 BIOS_H_TIMI:       EQU	FD9Fh	; MSX BIOS VBlank interrupt hook opcode byte (FD9Fh)
 BIOS_H_TIMI_ADDR:  EQU	FDA0h	; MSX BIOS VBlank interrupt hook target word (FDA0h..FDA1h)
 BIOS_RG8SAV:       EQU	FFE7h	; MSX2 BIOS VDP R#8 shadow register
+BIOS_RG9SAV:       EQU	FFE8h	; MSX2 BIOS VDP R#9 shadow register
 BIOS_RG23SAV:      EQU	FFF6h	; MSX2 BIOS VDP R#23 vertical-scroll shadow register
 BIOS_RG25SAV:      EQU	FFFAh	; MSX2+ BIOS VDP R#25 shadow register
 SUBSLOT_REG:       EQU	FFFFh	; Secondary slot register of the page-3 primary slot (reads inverted)

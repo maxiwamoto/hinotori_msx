@@ -387,6 +387,11 @@ HS_CHECK_AND_SPAWN_TERRAIN_REC:
 	SUB	E
 	JR	NC,.dist_ok
 	ADD	A,HS_ROUTE_ROWS % 0100h
+	JR	C,.dist_ok
+; Some streams use trigger rows C0h..FFh beyond the route's BFh end.
+; Wrap once more if the distance is still negative. In particular, FFh
+; must not reach the original-scroll sentinel and bypass tag/X checks.
+	ADD	A,HS_ROUTE_ROWS % 0100h
 
 .dist_ok:
 	LD	E,A

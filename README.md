@@ -4,6 +4,27 @@ Commented Z80 disassembly of **Hi no Tori: Houou-hen** (Konami, 1987),
 with an Enhanced edition for MSX2/MSX2+. One maintained source tree contains
 the sixteen physical 8 KiB ROM banks and their build dependencies.
 
+## Play Enhanced without compiling
+
+**Hinotori Enhanced is released.** Download one of the three IPS patches from
+the [v1.0.0 release](https://github.com/maxiwamoto/hinotori_msx/releases/tag/v1.0.0):
+
+- `hinotori-main-to-enhanced.ips` for the original Main `(J)` ROM.
+- `hinotori-a1-to-enhanced.ips` for the original `(J) [a1]` ROM.
+- `hinotori-a2-to-enhanced.ips` for the original `(J) [a2]` ROM.
+
+Use an IPS patcher to apply exactly one patch to an uncompressed original ROM
+matching the SHA-1 in the table below. Keep your original and save the patched
+result separately. IPS does not check the input ROM, so check its hash first;
+do not patch an English translation, another modified ROM, or a ZIP archive.
+All three patches produce the same Enhanced ROM with both Japanese and English.
+
+Name the result **`hinotori-enhanced [Konami].rom`** for WebMSX, or select
+**Cartridge 1 > Set ROM Format > Konami**. WebMSX may guess ASCII8 without the
+filename hint. Use MSX2 or later; horizontal scrolling requires MSX2+ or turbo R.
+Enhanced selects 60 Hz at startup, including on PAL machines. Cold-reset after
+loading a new build: older emulator states restore older RAM code and settings.
+
 ## Four targets
 
 | Target | Description | SHA-1 (131,072 bytes each) |
@@ -11,12 +32,14 @@ the sixteen physical 8 KiB ROM banks and their build dependencies.
 | `main` | Original Japanese Main dump | `D723F2EB1C887DB5448FD56BE5E7C57E60D88E63` |
 | `a1` | Original Japanese alternate revision | `612C18616BC800D9EB69B9DA3CD29ECA31F50C1C` |
 | `a2` | Archival Main-based alternate dump, including its incorrect music-loop pointer | `300F20ADDE3941AB10EB158DB48250E8E856A911` |
-| `enhanced` | A1-based enhancements; Japanese/English selection at runtime | `323A9FCC76F78C164C44FD9C17646461F035059E` |
+| `enhanced` | A1-based enhancements; Japanese/English selection at runtime | `13266235D64DA99092E32543137EE0972D96328A` |
 
 Enhanced adds MSX2+ hardware horizontal scrolling, border masking, automatic
 turbo support, restored Enemy 16h
 encounters, and fixes including the Level 4 boss-tablet palette and Game Master
-title-screen restoration. It is still being play-tested. Main/A1 stay original;
+title-screen restoration. This release also fixes duplicated Level 3 shooting
+heads during horizontal scrolling and the English ending's freeze before the
+credits. It is still being play-tested. Main/A1 stay original;
 A2 reproduces Main's one-byte alteration and does not include A1's fixes.
 
 ## Contents
@@ -26,6 +49,7 @@ A2 reproduces Main's one-byte alteration and does not include A1's fixes.
 - `asm/enhanced/`: scrolling, turbo and translation-fix modules.
 - `asm/hinotori-*.asm`: four entry wrappers; `asm/hinotori.asm` includes the banks.
 - `tools/build.py`, `tools/convert.py`, `tools/package.py`: build, export and package.
+- `tools/make_ips.py`: generate and verify the three Enhanced IPS release patches.
 - `checksums.json`: reference sizes, SHA-1 and SHA-256 values.
 
 No external ROM input is needed to assemble: the assembly includes the code and
@@ -67,6 +91,17 @@ Outputs, per-target symbols and assembler logs go in `build/<assembler>/`.
 reference hash or cross-assembler byte difference fails the build. If you
 intentionally edit the game, use `--allow-modified`; this skips reference hashes
 but still checks size and, with `--assembler all`, cross-assembler equality.
+
+To reproduce the three release patches after building all four tniasm targets:
+
+```sh
+python tools/make_ips.py
+```
+
+The patches go in `build/ips/`. The tool checks every input against
+`checksums.json`, then applies each saved patch and verifies that its output is
+byte-for-byte identical to Enhanced. Use `--rom-dir build/glass` or
+`--rom-dir build/sjasmplus` for the other assemblers.
 
 ## Conversion and standalone source packages
 

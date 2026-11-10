@@ -1152,6 +1152,14 @@ HS_BANK07_BOOT_INIT:
 	DI
 
 ENHANCED_BOOT_TURBO_READY:
+; Music and gameplay use VBlank timing: select 60 Hz on PAL machines too.
+; Preserve other R#9 bits and update the BIOS shadow so CHGMOD keeps it.
+	LD	A,(BIOS_RG9SAV)
+	AND	FDh
+	LD	B,A
+	LD	C,09h
+	CALL	BIOS_WRTVDP
+	DI	; WRTVDP may enable interrupts; module installation requires DI.
 	XOR	A
 	LD	(HS_FLAGS),A
 	LD	(HS_CAM_LO),A

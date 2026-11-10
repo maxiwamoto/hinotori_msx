@@ -319,8 +319,8 @@ ENDING_FIREBIRD_MESSAGE_PTR_TABLE:
 
 ; Four positioned text blocks rendered via 4FBEh (2-byte X,Y header; FEh = new positioned
 ; line; FFh = end): Msg 0 (A9D1h..AA25h), Msg 1 (AA26h..AA79h), Msg 2 (AA7Ah..AAB0h), plus
-; hidden HOME-key bonus message (AAB1h..AAF0h, 'HOUOUGA Tonda!! / SECRET KEY WA / <aaaaa>
-; DESU') referenced directly at AE4Ch.
+; hidden HOME-key bonus message (AAB1h..AAF0h, revealing FULLITEMDAYOON)
+; referenced directly at AE4Ch.
 ENDING_FIREBIRD_POSITIONED_MESSAGES:
 	DB	48h,90h,65h,92h,"db",85h,94h,"qau`toy",FEh
 	DB	30h,A0h,"oo",92h,"kaii",8Ah,8Ch,82h,91h,6Fh,A9h,75h,8Dh,68h,92h,8Dh,75h,FEh
@@ -340,7 +340,7 @@ ENDING_FIREBIRD_SPEECH_3:
 	DB	48h,A0h,"`o",86h,"ka",A9h,"`tox",7Fh,70h,8Ch,94h,FEh
 	DB	40h,B0h,"ix",85h,75h,A9h,"`ax",A9h,60h,88h,"ef",92h,87h,95h,FFh
 
-; Hidden HOME-key secret password hint ('<aaaaa>')
+; Hidden HOME-key secret password hint (FULLITEMDAYOON, one of each item)
 ENDING_HOME_SECRET_HINT_TEXT:
 	DB	68h,90h,64h,81h,72h,92h,"sb",95h,FEh
 	DB	58h,A0h,"dqe",89h,6Ah,7Eh,72h,92h,"ko",95h,FEh
@@ -495,7 +495,7 @@ ENDING_DEMO_STATE_TABLE:
 
 ; State handlers for Ending Demo states 00h..0Fh: Scene 1 temple ascent setup, palette
 ; fades, timed actor script playback, Scene 2 Firebird reveal, 3-part Firebird speech with
-; color-12 RGB text fades, hidden HOME-key bonus check (SNSMAT row 8 bit 1 -> 'aaaaa' hint
+; color-12 RGB text fades, hidden HOME-key bonus check (SNSMAT row 8 bit 1 -> item-password hint
 ; at AAB1h), and scrolling credits outer loop (ending with CALL 40AEh at AED1h).
 ENDING_STATE_00_INIT_SCENE1:
 	CALL	RUN_ENDING_PALETTE_FADE_OUT
@@ -664,7 +664,7 @@ ENDING_MSG_FADE_IN_STEP:
 	LD	(ENDING_SUBSTATE),A
 	RET
 
-; Wait post-speech delay while polling HOME key for hidden 'aaaaa' message
+; Wait post-speech delay while polling HOME key for the hidden item-password hint
 ENDING_STATE_08_POLL_HOME_SECRET:
 	CALL	RUN_ENDING_OBJECTS_FRAME
 	LD	A,(ENDING_HOME_BONUS_SHOWN)
@@ -1047,11 +1047,10 @@ BLIT_ENDING_EMBLEM_TILEBLOCK:
 	JR	Z,.blit_jp_end_kanji
 	LD	HL,4800h
 	LD	(SUBSCREEN_TILE_Y_OFFSET),HL
-	CALL	MAP_FONT_TITLE_BANKS_13_14_15
 	LD	HL,ENDING_THE_END_TILEMAP_4X2
 	LD	BC,0402h
-	CALL	RENDER_STAGE_OR_EMBLEM_TILEMAP
-	JP	RESTORE_DEFAULT_CORE_BANKS	; asm/banks/bank00.asm
+; Bank 06 cannot continue executing after the graphics banks replace it.
+	JP	DRAW_ENHANCED_CREDITS_TILEMAP	; asm/banks/bank00.asm
 
 .blit_jp_end_kanji:
 	ENDIF
@@ -2651,8 +2650,8 @@ APPLY_SECRET_WATCH_ENDING_ENTRY:
 	LD	(DYNAMIC_SPRITE_SLOT_CNT),A
 	RET
 
-; NUL-terminated hidden developer password 'aaaaa' (5 lowercase 'a' bytes, reachable only
-; via CAPS-off input after seeing HOME hint in ending).
+; NUL-terminated hidden developer password 'aaaaa' (5 lowercase 'a' bytes).
+; Requires lowercase input; the ending HOME hint advertises FULLITEMDAYOON instead.
 SECRET_TEXT_HIDDEN_FIVE_LOWERCASE_A:
 	DB	"aaaaa",00h
 
