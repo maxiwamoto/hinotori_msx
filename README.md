@@ -32,7 +32,7 @@ loading a new build: older emulator states restore older RAM code and settings.
 | `main` | Original Japanese Main dump | `D723F2EB1C887DB5448FD56BE5E7C57E60D88E63` |
 | `a1` | Original Japanese alternate revision | `612C18616BC800D9EB69B9DA3CD29ECA31F50C1C` |
 | `a2` | Archival Main-based alternate dump, including its incorrect music-loop pointer | `300F20ADDE3941AB10EB158DB48250E8E856A911` |
-| `enhanced` | A1-based enhancements; Japanese/English selection at runtime | `CAB638A3D4ACEB555E918C998143143766FB374D` |
+| `enhanced` | A1-based enhancements; Japanese/English selection at runtime | `5D755BDFFD1A1383C6CD585740155EFB1B9F0811` |
 
 Enhanced adds MSX2+ hardware horizontal scrolling, border masking, automatic
 turbo support, restored Enemy 16h

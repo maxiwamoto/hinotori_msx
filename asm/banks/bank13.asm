@@ -583,8 +583,8 @@ FIREBIRD_LOGO_TILEMAP_18X4:
 	DB	0Bh,17h,14h,0Eh,18h,19h,0Bh,1Ah,1Bh,1Ch,1Dh,1Eh,0Eh,18h,19h,0Bh,1Fh,20h
 	DB	21h,22h,23h,24h,25h,26h,27h,28h,29h,28h,2Ah,23h,24h,25h,26h,27h,28h,2Bh
 
-; English Title subtitle string "-PHOENIX KARMA-" (16B)
-PHOENIX_KARMA_SUBTITLE_TEXT:
+; English title/ending subtitle: 16 tile indices spelling "THE PHOENIX SAGA".
+PHOENIX_SAGA_SUBTITLE_TILEMAP_16X1:
 	DB	3Fh,33h,30h,00h,3Bh,33h,3Ah,30h,39h,34h,43h,00h,3Eh,2Ch,32h,2Ch
 
 ; Complete 48x32 FIN from the original English ending, centered at X=68h.

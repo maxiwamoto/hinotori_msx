@@ -347,7 +347,8 @@ ENDING_HOME_SECRET_HINT_TEXT:
 	DB	48h,B0h,"`h",7Fh,65h,86h,78h,A9h,"`ax",A9h,"isy",92h,79h,94h,FEh
 	DB	48h,C0h,"FULLITEMDAYOON",A9h,85h,95h,FFh
 
-; 25-entry 16-bit pointer table (AAF1h..AB22h) terminated by FFFFh (AB23h..AB24h) for Part 1
+; Original 25-entry Part 1 credit table; Enhanced adds four entries (29 total).
+; Original span AAF1h..AB22h, followed by the FFFFh terminator at AB23h..AB24h.
 ; of the scrolling staff credits. Read 1-based via LD HL,AAEFh / CALL 4875h at AEE8h using
 ; 1-based counter (CD80h).
 ENDING_CREDITS_PART1_LINE_PTR_TABLE:
@@ -741,7 +742,12 @@ ENDING_STATE_0A_PREPARE_CREDITS_GFX:
 	OR	A
 	JR	Z,.draw_ending_jp_emblems
 	LD	DE,3838h
-	CALL	DRAW_FIREBIRD_CREDITS_LOGO_AT_DE
+	CALL	DRAW_FIREBIRD_LOGO_AT_DE
+	LD	HL,PHOENIX_SAGA_SUBTITLE_TILEMAP_16X1
+	LD	DE,4058h
+	LD	BC,1001h
+; The fixed-bank helper restores Bank 06 after reading the Bank 13 tilemap.
+	CALL	DRAW_ENHANCED_CREDITS_TILEMAP
 	JR	.done_ending_emblems
 
 .draw_ending_jp_emblems:
@@ -768,7 +774,7 @@ ENDING_STATE_0B_FADE_IN_CREDITS_BG:
 	LD	A,(ENDING_FADE_DONE_FLAG)
 	OR	A
 	RET	Z
-	CALL	BLIT_ENDING_EMBLEM_TILEBLOCK
+	CALL	DRAW_ENDING_FIN_OR_KANJI
 	XOR	A
 	JP	SET_ENDING_TIMER_AND_ADVANCE
 
@@ -1059,8 +1065,9 @@ ENDING_STATE_11_IDLE_RET:
 	RET
 	ENDIF
 
-; Copy 32x32 white '完' ("THE END") kanji block from VRAM Page 1 (E0h, 90h) to Page 0 (70h, 90h)
-BLIT_ENDING_EMBLEM_TILEBLOCK:
+; Enhanced English draws a 48x32 FIN tilemap from Bank 13 via fixed Bank 00.
+; Japanese: copy 32x32 white '完' ("THE END") kanji block from VRAM Page 1 (E0h, 90h) to Page 0 (70h, 90h)
+DRAW_ENDING_FIN_OR_KANJI:
 	LD	DE,7090h
 	IF	HINOTORI_ENHANCED
 	LD	A,(LANGUAGE_MODE_FLAG)
@@ -3533,7 +3540,8 @@ DRAW_TEXT_AND_RESTORE_PAGE2:
 	JP	MAP_BANK_A_INTO_PAGE2	; asm/banks/bank00.asm
 	ENDIF
 
-; 117 bytes of unused FFh padding filling the remainder of Physical Bank 06 (BF8Bh..BFFFh).
+; Pad Physical Bank 06 to its end. Originals reserve 117 bytes (BF8Bh..BFFFh);
+; Enhanced uses part of that space for its additional helpers.
 BANK06_TAIL_PADDING_FF:
 	DS	C000h - $,FFh
 

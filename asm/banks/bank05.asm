@@ -567,7 +567,7 @@ WRAP_ENGLISH_GAMEPLAY_MESSAGE_LINES:
 	POP	HL
 	RET
 
-; English 4-entry DW pointer table for Ending Scene 1 Firebird speeches
+; English 4-entry DW pointer table for Ending Scene 2 Firebird speeches
 ENDING_FIREBIRD_MESSAGE_PTR_TABLE_EN:
 	DW	ENDING_FIREBIRD_SPEECH_1_EN
 	DW	ENDING_FIREBIRD_SPEECH_2_EN
