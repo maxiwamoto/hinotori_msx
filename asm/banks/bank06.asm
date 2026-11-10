@@ -1,0 +1,3519 @@
+; Physical Bank 06 (ROM 0C000h-0DFFFh): Gao player sprite patterns, Ending Demo & staff
+; credits engine (MainState 0Ch), password codec & 17 original secret codes (MainState 0Ah),
+; with additional English secret-code checks in Enhanced,
+; F3 ITEM INFORMATION inventory screen (MainState 11h), and Firebird/tablet dialogue (MainState 12h)
+	PHASE	A000h
+
+; 43-byte page-spanning continuation of 6-tile (144-byte) 3bpp common VRAM Page 1 A000h tile
+; block starting in Bank 05 at 0BF9Bh..0C02Ah (loaded via Bank 04 descriptor 61E9h commands
+; @0823B and @0824C through E800h 3bpp->4bpp expander).
+COMMON_PAGE_A000_3BPP_TILES_CONT:
+	DB	00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,06h,07h,07h
+	DB	18h,18h,1Fh,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	00h,00h,00h,00h,00h,18h,78h,F8h,44h,0Ch,FCh
+
+; 144-byte (6-tile, 24 bytes/tile) 3bpp common VRAM Page 1 A000h tile block loaded to dst
+; 2Ah..2Fh and 30h..35h via Bank 04 descriptor 61E9h commands @08241 and @08252.
+COMMON_PAGE_A000_3BPP_TILES_BLOCK2:
+	DB	CFh,9Fh,FFh,AFh,FFh,FFh,FFh,BFh,FFh,BFh,BFh,FFh
+	DB	DFh,FFh,FFh,F5h,CFh,FFh,7Eh,70h,7Fh,1Fh,1Dh,1Fh
+	DB	F5h,F9h,FFh,F5h,FDh,FFh,FDh,FFh,FFh,FDh,FDh,FFh
+	DB	F3h,FBh,FFh,A7h,F3h,FFh,6Eh,0Eh,FEh,F8h,B8h,F8h
+	DB	FFh,86h,FFh,AEh,C0h,FFh,EAh,B5h,FFh,BDh,97h,FFh
+	DB	EFh,DFh,FFh,F5h,CFh,FFh,7Eh,70h,7Fh,1Fh,1Dh,1Fh
+	DB	FDh,61h,FFh,71h,85h,FFh,15h,AFh,FFh,BDh,E9h,FFh
+	DB	F3h,FBh,FFh,A7h,F3h,FFh,6Eh,0Eh,FEh,F8h,B8h,F8h
+	DB	2Ah,26h,3Fh,77h,4Eh,7Fh,BEh,DCh,FFh,7Fh,90h,FFh
+	DB	D7h,23h,FFh,7Bh,9Ch,FFh,D7h,80h,FFh,7Fh,7Dh,7Fh
+	DB	B2h,C6h,FEh,C5h,F3h,FFh,FDh,7Bh,FFh,FAh,09h,FFh
+	DB	B9h,C5h,FFh,F4h,71h,FFh,E9h,03h,FFh,F6h,B6h,F6h
+
+; 80-byte table of 40 16-bit pointers (20 animation pose pairs x 2 pointers) into
+; A10Bh..A7CAh. Read by Bank 02 93D6h (called from RunGameplayFrame 5C47h with Bank 06
+; mapped) to upload two 40h-byte 16x16 sprite pattern pairs per pose into VRAM F800h and
+; F840h.
+GAO_SPRITE_PATTERN_PAIR_TABLE:
+	DW	GAO_SPRITE_PATTERN_BLOCKS
+	DW	GAO_POSE_SPRITE_BLOCK_01
+	DW	GAO_POSE_SPRITE_BLOCK_02
+	DW	GAO_POSE_SPRITE_BLOCK_03
+	DW	GAO_POSE_SPRITE_BLOCK_04
+	DW	GAO_POSE_SPRITE_BLOCK_05
+	DW	GAO_POSE_SPRITE_BLOCK_06
+	DW	GAO_POSE_SPRITE_BLOCK_07
+	DW	GAO_POSE_SPRITE_BLOCK_08
+	DW	GAO_POSE_SPRITE_BLOCK_09
+	DW	GAO_POSE_SPRITE_BLOCK_16
+	DW	GAO_POSE_SPRITE_BLOCK_17
+	DW	GAO_POSE_SPRITE_BLOCK_16
+	DW	GAO_POSE_SPRITE_BLOCK_17
+	DW	GAO_POSE_SPRITE_BLOCK_16
+	DW	GAO_POSE_SPRITE_BLOCK_17
+	DW	GAO_POSE_SPRITE_BLOCK_16
+	DW	GAO_POSE_SPRITE_BLOCK_17
+	DW	GAO_POSE_SPRITE_BLOCK_17
+	DW	GAO_POSE_SPRITE_BLOCK_18
+	DW	GAO_POSE_SPRITE_BLOCK_21
+	DW	GAO_POSE_SPRITE_BLOCK_22
+	DW	GAO_POSE_SPRITE_BLOCK_23
+	DW	GAO_POSE_SPRITE_BLOCK_24
+	DW	GAO_POSE_SPRITE_BLOCK_25
+	DW	GAO_POSE_SPRITE_BLOCK_26
+	DW	GAO_POSE_SPRITE_BLOCK_10
+	DW	GAO_POSE_SPRITE_BLOCK_11
+	DW	GAO_POSE_SPRITE_BLOCK_14
+	DW	GAO_POSE_SPRITE_BLOCK_15
+	DW	GAO_POSE_SPRITE_BLOCK_12
+	DW	GAO_POSE_SPRITE_BLOCK_13
+	DW	GAO_POSE_SPRITE_BLOCK_19
+	DW	GAO_POSE_SPRITE_BLOCK_20
+	DW	GAO_POSE_SPRITE_BLOCK_21
+	DW	GAO_POSE_SPRITE_BLOCK_22
+	DW	GAO_POSE_SPRITE_BLOCK_23
+	DW	GAO_POSE_SPRITE_BLOCK_24
+	DW	GAO_POSE_SPRITE_BLOCK_25
+	DW	GAO_POSE_SPRITE_BLOCK_26
+
+; 1,728 bytes = 27 contiguous 40h-byte sprite pattern blocks (54 16x16 hardware sprite
+; patterns) for all Gao player poses. Every single block (indices 0..26, including
+; A30Bh..A38Ah [blocks 8..9] and A50Bh..A64Ah [blocks 16..20]) is referenced by
+; GAO_SPRITE_PATTERN_PAIR_TABLE (A0BBh..A10Ah).
+GAO_SPRITE_PATTERN_BLOCKS:
+	DB	00h,00h,00h,00h,00h,00h,07h,0Fh,0Fh,0Fh,0Fh,3Fh,67h,CFh,FFh,FFh
+	DB	00h,00h,00h,00h,00h,00h,80h,C0h,CCh,F2h,DEh,EEh,FEh,FAh,FEh,FCh
+	DB	00h,00h,00h,00h,00h,00h,07h,0Eh,0Fh,0Eh,0Fh,3Bh,5Bh,F1h,A1h,B0h
+	DB	00h,00h,00h,00h,00h,00h,80h,C0h,CCh,FEh,6Ah,56h,C6h,8Eh,1Ah,1Ch
+
+; 64-byte Gao 16x16 sprite pattern pair 01
+GAO_POSE_SPRITE_BLOCK_01:
+	DB	FFh,FFh,6Eh,1Fh,1Fh,1Fh,0Fh,0Eh,0Fh,1Fh,1Fh,3Fh,3Fh,3Fh,1Fh,03h
+	DB	E0h,A0h,70h,D0h,90h,F0h,FCh,DCh,FCh,9Ch,DCh,F8h,D8h,90h,E0h,80h
+	DB	DCh,DFh,6Dh,1Fh,18h,1Ch,0Fh,0Ah,0Fh,1Fh,1Fh,3Fh,3Fh,3Fh,1Fh,03h
+	DB	60h,E0h,F0h,F0h,70h,30h,DCh,BCh,DCh,FCh,BCh,B8h,38h,F0h,E0h,80h
+
+; 64-byte Gao 16x16 sprite pattern pair 02
+GAO_POSE_SPRITE_BLOCK_02:
+	DB	00h,00h,00h,00h,00h,07h,0Fh,0Fh,0Fh,0Fh,3Fh,4Fh,DFh,FFh,FFh,FFh
+	DB	00h,00h,00h,00h,00h,80h,C0h,C0h,C0h,F0h,D8h,E6h,FFh,FBh,F9h,FDh
+	DB	00h,00h,00h,00h,00h,07h,0Eh,0Fh,0Dh,0Eh,36h,76h,E3h,A2h,B0h,D8h
+	DB	00h,00h,00h,00h,00h,80h,C0h,40h,C0h,F0h,A8h,9Eh,05h,0Fh,1Fh,7Bh
+
+; 64-byte Gao 16x16 sprite pattern pair 03
+GAO_POSE_SPRITE_BLOCK_03:
+	DB	7Fh,2Eh,1Fh,1Fh,1Fh,1Fh,1Ch,13h,0Bh,37h,73h,7Fh,7Fh,3Fh,0Fh,00h
+	DB	E7h,66h,D0h,10h,B0h,F0h,F0h,90h,D8h,FCh,9Ch,FCh,F8h,E0h,C0h,00h
+	DB	5Fh,2Dh,17h,18h,18h,1Fh,14h,1Fh,0Fh,3Fh,7Fh,73h,7Fh,3Fh,0Fh,00h
+	DB	A5h,E6h,F0h,F0h,70h,D0h,B0h,F0h,B8h,BCh,FCh,FCh,F8h,E0h,C0h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 04
+GAO_POSE_SPRITE_BLOCK_04:
+	DB	00h,00h,00h,00h,00h,00h,07h,0Fh,0Fh,0Fh,0Fh,3Fh,5Fh,7Fh,7Fh,7Fh
+	DB	00h,00h,00h,00h,00h,00h,80h,C0h,C0h,C0h,FCh,8Eh,EAh,F9h,FDh,FFh
+	DB	00h,00h,00h,00h,00h,00h,07h,0Ch,0Fh,0Bh,0Bh,3Dh,6Dh,47h,62h,50h
+	DB	00h,00h,00h,00h,00h,00h,80h,C0h,40h,C0h,FCh,F6h,1Eh,0Fh,0Fh,15h
+
+; 64-byte Gao 16x16 sprite pattern pair 05
+GAO_POSE_SPRITE_BLOCK_05:
+	DB	3Fh,0Fh,0Eh,1Fh,1Fh,1Fh,17h,1Eh,13h,33h,7Bh,7Fh,73h,3Dh,3Fh,1Ch
+	DB	FBh,E7h,D9h,96h,30h,F0h,D0h,60h,E0h,F0h,FCh,FCh,FCh,D8h,80h,00h
+	DB	3Ch,0Fh,0Dh,17h,10h,18h,1Fh,16h,1Fh,3Fh,7Fh,7Bh,7Fh,33h,3Fh,1Ch
+	DB	7Bh,E5h,7Fh,F6h,F0h,50h,F0h,60h,E0h,F0h,FCh,FCh,FCh,D8h,80h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 06
+GAO_POSE_SPRITE_BLOCK_06:
+	DB	00h,00h,00h,00h,00h,03h,07h,07h,1Fh,2Fh,7Fh,FFh,FFh,FFh,7Fh,0Eh
+	DB	00h,00h,00h,00h,00h,80h,C0h,E0h,F8h,1Ch,32h,BAh,FFh,FFh,F7h,69h
+	DB	00h,00h,00h,00h,00h,03h,07h,06h,1Dh,36h,64h,A0h,B0h,D0h,77h,0Dh
+	DB	00h,00h,00h,00h,00h,80h,40h,E0h,F8h,E4h,DEh,56h,1Fh,0Fh,D5h,EFh
+
+; 64-byte Gao 16x16 sprite pattern pair 07
+GAO_POSE_SPRITE_BLOCK_07:
+	DB	1Fh,1Fh,1Fh,1Fh,1Fh,16h,1Eh,09h,0Ch,07h,03h,00h,00h,00h,00h,00h
+	DB	FEh,F8h,F8h,F8h,D0h,90h,60h,00h,80h,80h,00h,00h,00h,00h,00h,00h
+	DB	17h,10h,18h,1Fh,17h,1Eh,1Eh,0Fh,0Bh,04h,03h,00h,00h,00h,00h,00h
+	DB	9Eh,28h,78h,C8h,B0h,F0h,60h,00h,80h,80h,00h,00h,00h,00h,00h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 08
+GAO_POSE_SPRITE_BLOCK_08:
+	DB	00h,00h,00h,00h,00h,00h,00h,07h,0Fh,0Fh,0Fh,1Fh,7Fh,9Fh,BFh,FFh
+	DB	00h,00h,00h,00h,00h,00h,00h,80h,C0h,C0h,C0h,F0h,DCh,E6h,FAh,FBh
+	DB	00h,00h,00h,00h,00h,00h,00h,07h,0Ch,0Fh,0Fh,1Dh,6Eh,E6h,C6h,C3h
+	DB	00h,00h,00h,00h,00h,00h,00h,80h,C0h,40h,C0h,F0h,ECh,9Eh,86h,0Fh
+
+; 64-byte Gao 16x16 sprite pattern pair 09
+GAO_POSE_SPRITE_BLOCK_09:
+	DB	FFh,FFh,7Fh,2Fh,1Fh,1Fh,1Fh,1Fh,12h,1Fh,3Fh,67h,77h,7Fh,3Fh,0Fh
+	DB	FBh,FDh,FDh,67h,F7h,FFh,F9h,D7h,90h,DCh,FCh,CCh,DCh,F8h,F0h,C0h
+	DB	A2h,98h,5Fh,2Ch,17h,18h,18h,17h,1Eh,13h,37h,7Bh,7Bh,7Fh,3Fh,0Fh
+	DB	0Fh,3Bh,FFh,E5h,D7h,3Dh,3Fh,F7h,F0h,FCh,DCh,BCh,BCh,F8h,F0h,C0h
+
+; 64-byte Gao 16x16 sprite pattern pair 10
+GAO_POSE_SPRITE_BLOCK_10:
+	DB	00h,00h,00h,07h,0Fh,0Fh,0Fh,0Fh,3Fh,67h,CFh,FFh,FFh,FFh,FFh,6Eh
+	DB	00h,00h,00h,80h,C0h,CCh,F2h,DEh,EEh,FEh,FAh,FEh,FCh,E0h,A0h,60h
+	DB	00h,00h,00h,07h,0Eh,0Fh,0Eh,0Fh,3Bh,5Bh,F1h,A1h,B0h,DCh,DFh,6Dh
+	DB	00h,00h,00h,80h,C0h,CCh,FEh,6Ah,56h,C6h,8Eh,1Ah,1Ch,60h,E0h,E0h
+
+; 64-byte Gao 16x16 sprite pattern pair 11
+GAO_POSE_SPRITE_BLOCK_11:
+	DB	10h,10h,0Ah,03h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	08h,18h,50h,C0h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	07h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	C0h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 12
+GAO_POSE_SPRITE_BLOCK_12:
+	DB	00h,00h,07h,0Fh,0Fh,0Fh,0Fh,3Fh,4Fh,DFh,FFh,FFh,FFh,7Fh,2Eh,1Fh
+	DB	00h,00h,80h,C0h,C0h,C0h,F0h,D8h,E6h,FFh,FBh,F9h,FDh,E7h,66h,D0h
+	DB	00h,00h,07h,0Eh,0Fh,0Dh,0Eh,36h,76h,E3h,A2h,B0h,D8h,5Fh,2Dh,17h
+	DB	00h,00h,80h,C0h,40h,C0h,F0h,A8h,9Eh,05h,0Fh,1Fh,7Bh,A5h,E6h,F0h
+
+; 64-byte Gao 16x16 sprite pattern pair 13
+GAO_POSE_SPRITE_BLOCK_13:
+	DB	00h,10h,00h,05h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	00h,10h,20h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	0Fh,03h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	E0h,80h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 14
+GAO_POSE_SPRITE_BLOCK_14:
+	DB	00h,00h,00h,07h,0Fh,0Fh,0Fh,0Fh,3Fh,5Fh,7Fh,7Fh,7Fh,3Fh,0Fh,0Eh
+	DB	00h,00h,00h,80h,C0h,C0h,C0h,FCh,8Eh,EAh,F9h,FDh,FFh,FBh,E7h,E9h
+	DB	00h,00h,00h,07h,0Ch,0Fh,0Bh,0Bh,3Dh,6Dh,47h,62h,50h,3Ch,0Fh,0Dh
+	DB	00h,00h,00h,80h,C0h,40h,C0h,FCh,F6h,1Eh,0Fh,0Fh,15h,7Bh,E5h,6Fh
+
+; 64-byte Gao 16x16 sprite pattern pair 15
+GAO_POSE_SPRITE_BLOCK_15:
+	DB	10h,10h,0Bh,01h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	10h,10h,60h,80h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	07h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	C6h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 16
+GAO_POSE_SPRITE_BLOCK_16:
+	DB	00h,00h,00h,00h,00h,00h,00h,00h,07h,1Fh,3Fh,3Fh,3Fh,1Fh,07h,00h
+	DB	00h,00h,00h,00h,00h,00h,00h,00h,E0h,F8h,FCh,FCh,FCh,F8h,E0h,00h
+	DB	00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 17
+GAO_POSE_SPRITE_BLOCK_17:
+	DB	00h,00h,00h,00h,03h,04h,07h,0Fh,0Fh,0Fh,3Fh,6Fh,DFh,FFh,FFh,FFh
+	DB	00h,00h,00h,06h,09h,91h,9Bh,D7h,CFh,D9h,F9h,DBh,FFh,FFh,FEh,FCh
+	DB	00h,00h,00h,00h,03h,07h,07h,0Ch,0Fh,0Fh,3Dh,5Eh,A6h,C6h,A3h,A3h
+	DB	00h,00h,00h,06h,0Fh,9Fh,9Dh,DBh,49h,5Fh,EFh,FDh,9Bh,8Dh,82h,0Ch
+
+; 64-byte Gao 16x16 sprite pattern pair 18
+GAO_POSE_SPRITE_BLOCK_18:
+	DB	FFh,7Fh,0Eh,1Fh,1Fh,1Fh,1Fh,1Ch,1Bh,0Fh,3Bh,79h,7Fh,7Fh,3Fh,0Fh
+	DB	F8h,E0h,70h,D0h,D0h,F0h,F0h,F0h,90h,D8h,FCh,9Ch,FCh,F8h,E0h,C0h
+	DB	DAh,7Fh,0Dh,17h,13h,18h,1Fh,14h,17h,0Fh,3Fh,7Fh,79h,7Fh,3Fh,0Fh
+	DB	38h,E0h,F0h,F0h,B0h,30h,D0h,B0h,F0h,B8h,BCh,FCh,FCh,F8h,E0h,C0h
+
+; 64-byte Gao 16x16 sprite pattern pair 19
+GAO_POSE_SPRITE_BLOCK_19:
+	DB	00h,03h,04h,07h,0Fh,0Fh,0Fh,3Fh,6Fh,DFh,FFh,FFh,FFh,FFh,7Fh,0Eh
+	DB	06h,09h,91h,9Bh,D7h,CFh,D9h,F9h,DBh,FFh,FFh,FEh,FCh,F8h,E0h,60h
+	DB	00h,03h,07h,07h,0Ch,0Fh,0Fh,3Dh,5Eh,A6h,C6h,A3h,A3h,DAh,7Fh,0Dh
+	DB	06h,0Fh,9Fh,9Dh,DBh,49h,5Fh,EFh,FDh,9Bh,8Dh,82h,0Ch,38h,E0h,E0h
+
+; 64-byte Gao 16x16 sprite pattern pair 20
+GAO_POSE_SPRITE_BLOCK_20:
+	DB	00h,10h,00h,05h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	10h,10h,20h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	07h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+	DB	C0h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 21
+GAO_POSE_SPRITE_BLOCK_21:
+	DB	04h,06h,43h,23h,27h,6Fh,7Fh,3Fh,3Fh,7Fh,FCh,FCh,EEh,FCh,F6h,72h
+	DB	06h,08h,10h,90h,B8h,BCh,3Eh,1Eh,DEh,FFh,FFh,7Bh,73h,76h,FEh,CCh
+	DB	00h,00h,00h,01h,01h,03h,02h,06h,07h,3Fh,6Fh,47h,47h,63h,23h,01h
+	DB	00h,00h,00h,00h,00h,10h,18h,0Ch,0Ch,86h,86h,CEh,DEh,DCh,8Ch,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 22
+GAO_POSE_SPRITE_BLOCK_22:
+	DB	0Eh,1Eh,1Ch,39h,3Bh,3Bh,3Bh,1Dh,1Fh,0Fh,47h,67h,3Fh,1Eh,00h,00h
+	DB	E0h,70h,B0h,D8h,E8h,68h,68h,BAh,BBh,AFh,BFh,1Eh,0Ch,00h,00h,00h
+	DB	01h,07h,0Fh,0Fh,0Eh,0Eh,0Eh,07h,07h,03h,03h,02h,04h,00h,00h,00h
+	DB	80h,E0h,E0h,70h,30h,30h,30h,10h,10h,12h,0Ch,00h,00h,00h,00h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 23
+GAO_POSE_SPRITE_BLOCK_23:
+	DB	01h,01h,02h,06h,06h,07h,03h,03h,07h,0Fh,1Fh,3Bh,37h,6Fh,6Fh,5Bh
+	DB	10h,20h,44h,88h,D8h,5Ch,6Eh,EAh,EAh,B4h,B8h,F8h,FCh,8Ch,36h,7Ah
+	DB	00h,00h,00h,00h,00h,02h,01h,01h,03h,03h,06h,0Ch,18h,1Ah,35h,35h
+	DB	00h,00h,00h,00h,00h,08h,04h,44h,44h,48h,40h,80h,70h,F8h,C8h,84h
+
+; 64-byte Gao 16x16 sprite pattern pair 24
+GAO_POSE_SPRITE_BLOCK_24:
+	DB	5Bh,4Dh,2Dh,26h,13h,79h,6Dh,DCh,DEh,DEh,DEh,ECh,71h,7Fh,3Fh,1Eh
+	DB	7Ah,9Ah,F6h,ECh,5Ch,9Ch,EEh,EBh,F5h,F5h,F5h,F3h,E7h,FEh,7Ch,00h
+	DB	35h,32h,1Bh,1Dh,0Eh,07h,33h,73h,61h,61h,73h,3Fh,3Fh,1Eh,00h,00h
+	DB	D4h,E4h,0Ch,98h,F8h,70h,70h,B6h,BAh,9Ah,9Ah,1Eh,3Ch,18h,00h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 25
+GAO_POSE_SPRITE_BLOCK_25:
+	DB	00h,00h,00h,00h,01h,01h,03h,03h,01h,00h,10h,24h,07h,47h,03h,31h
+	DB	40h,40h,40h,80h,80h,00h,00h,80h,C4h,C2h,E2h,A2h,24h,6Ch,D8h,90h
+	DB	00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,02h,01h,00h
+	DB	00h,00h,00h,00h,00h,00h,00h,00h,80h,00h,40h,40h,C0h,C0h,80h,00h
+
+; 64-byte Gao 16x16 sprite pattern pair 26
+GAO_POSE_SPRITE_BLOCK_26:
+	DB	18h,08h,0Ch,0Ch,1Ch,18h,38h,78h,70h,F0h,D0h,DAh,6Ch,30h,00h,00h
+	DB	30h,30h,38h,3Ch,1Eh,1Ah,0Bh,0Bh,0Eh,14h,38h,00h,00h,00h,00h,00h
+	DB	00h,00h,00h,00h,08h,00h,10h,30h,20h,60h,60h,70h,30h,00h,00h,00h
+	DB	00h,00h,10h,18h,0Ch,0Ch,06h,06h,04h,08h,00h,00h,00h,00h,00h,00h
+
+; 192-byte (24x8) tilemap layout for Ending Demo Scene 1 upper temple structure, rendered at
+; AD4Ah (LD HL,A7CBh / LD BC,1808h / LD DE,0090h / CALL 58ADh).
+ENDING_SCENE1_TEMPLE_TILEMAP:
+	DB	54h,55h,3Ah,5Ah,5Bh,39h,5Fh,60h,00h,00h,00h,68h,69h,00h,00h,00h
+	DB	00h,00h,00h,7Ch,7Dh,00h,00h,00h,17h,56h,58h,5Ch,5Dh,5Eh,61h,1Eh
+	DB	00h,00h,00h,6Ah,6Bh,00h,00h,00h,00h,00h,00h,7Eh,4Fh,00h,00h,00h
+	DB	18h,46h,57h,59h,62h,63h,21h,1Dh,35h,42h,6Ch,6Dh,6Eh,6Fh,43h,36h
+	DB	00h,00h,3Ch,7Fh,80h,38h,00h,00h,00h,19h,1Ah,64h,65h,20h,1Ch,00h
+	DB	70h,71h,72h,73h,74h,75h,76h,77h,00h,00h,81h,82h,83h,84h,00h,00h
+	DB	00h,00h,1Fh,66h,47h,1Bh,00h,00h,2Dh,78h,48h,49h,4Ah,4Bh,2Eh,2Fh
+	DB	00h,00h,85h,86h,87h,88h,00h,00h,00h,00h,3Eh,67h,40h,34h,00h,00h
+	DB	00h,33h,4Ch,79h,29h,2Bh,00h,00h,00h,3Dh,89h,50h,52h,8Ah,37h,00h
+	DB	00h,00h,8Dh,27h,26h,25h,3Fh,00h,00h,00h,7Ah,4Dh,2Ah,00h,00h,00h
+	DB	00h,44h,30h,53h,8Bh,8Ch,3Bh,00h,00h,00h,00h,28h,24h,23h,22h,00h
+	DB	00h,00h,7Bh,45h,2Ch,00h,00h,00h,00h,00h,32h,31h,51h,00h,00h,00h
+
+; 224-byte (16x14) tilemap layout for Ending Demo Scene 2 large Firebird portrait, rendered
+; by helper AFBAh (LD HL,A88Bh / LD BC,100Eh / LD DE,4010h / JP 51C2h).
+ENDING_SCENE2_FIREBIRD_TILEMAP:
+	DB	00h,40h,41h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,66h,6Ah,6Bh
+	DB	42h,43h,44h,45h,00h,00h,00h,00h,00h,00h,00h,66h,67h,68h,6Ch,6Dh
+	DB	47h,22h,20h,46h,00h,00h,00h,60h,61h,62h,64h,65h,1Fh,25h,28h,6Eh
+	DB	48h,23h,21h,0Fh,4Ch,4Dh,0Eh,29h,07h,63h,18h,1Ah,1Bh,26h,6Fh,50h
+	DB	49h,4Ah,24h,4Bh,4Eh,0Dh,09h,08h,06h,15h,16h,19h,1Ch,27h,51h,00h
+	DB	00h,30h,31h,4Fh,32h,0Ch,0Ah,05h,11h,13h,17h,1Dh,1Eh,52h,00h,00h
+	DB	00h,00h,80h,8Fh,33h,34h,01h,01h,12h,14h,53h,54h,55h,56h,00h,57h
+	DB	00h,00h,81h,35h,36h,37h,0Bh,2Ah,10h,04h,90h,91h,5Bh,5Ah,59h,58h
+	DB	00h,00h,9Bh,A1h,A3h,A2h,38h,02h,03h,3Bh,3Ch,92h,7Ah,00h,00h,00h
+	DB	70h,71h,72h,9Ch,8Eh,82h,98h,39h,3Ah,3Dh,3Eh,94h,00h,79h,00h,00h
+	DB	00h,00h,00h,77h,2Bh,9Dh,9Eh,9Ah,5Ch,3Fh,95h,93h,00h,7Eh,00h,00h
+	DB	73h,74h,75h,76h,85h,86h,7Bh,9Fh,5Dh,96h,A0h,A5h,69h,7Dh,00h,00h
+	DB	00h,00h,83h,84h,87h,00h,89h,8Ah,8Bh,8Ch,97h,7Ch,7Fh,99h,5Eh,5Fh
+	DB	00h,00h,88h,00h,00h,00h,00h,00h,00h,8Dh,78h,A4h,2Ch,2Dh,2Eh,2Fh
+
+; 96-byte (32x3) tilemap layout for Ending Demo Scene 1 lower pedestal/floor strip, rendered
+; by helper AFAFh (LD HL,A96Bh / LD BC,2003h / LD DE,00BCh / JP 51C2h).
+ENDING_SCENE1_FLOOR_TILEMAP:
+	DB	07h,05h,10h,06h,0Dh,04h,0Eh,0Fh,0Dh,04h,0Eh,0Fh,07h,05h,10h,06h
+	DB	07h,05h,10h,06h,0Dh,04h,0Eh,0Fh,0Dh,04h,0Eh,0Fh,07h,05h,10h,06h
+	DB	13h,14h,15h,16h,11h,12h,08h,0Bh,11h,12h,08h,09h,13h,14h,15h,16h
+	DB	11h,12h,15h,16h,11h,12h,08h,0Bh,11h,12h,08h,09h,13h,14h,15h,16h
+	DB	00h,00h,00h,02h,0Ch,0Ah,03h,01h,02h,0Ah,03h,01h,01h,00h,01h,02h
+	DB	03h,01h,03h,02h,0Ch,0Ah,03h,01h,02h,0Ah,03h,01h,01h,00h,00h,00h
+
+; 3-entry pointer table (A9D1h, AA26h, AA7Ah) for the three sequential Ending Demo Firebird
+; speeches, indexed via CD85h at AE10h (CALL 4875h).
+ENDING_FIREBIRD_MESSAGE_PTR_TABLE:
+	DW	ENDING_FIREBIRD_POSITIONED_MESSAGES
+	DW	ENDING_FIREBIRD_SPEECH_2
+	DW	ENDING_FIREBIRD_SPEECH_3
+
+; Four positioned text blocks rendered via 4FBEh (2-byte X,Y header; FEh = new positioned
+; line; FFh = end): Msg 0 (A9D1h..AA25h), Msg 1 (AA26h..AA79h), Msg 2 (AA7Ah..AAB0h), plus
+; hidden HOME-key bonus message (AAB1h..AAF0h, 'HOUOUGA Tonda!! / SECRET KEY WA / <aaaaa>
+; DESU') referenced directly at AE4Ch.
+ENDING_FIREBIRD_POSITIONED_MESSAGES:
+	DB	48h,90h,65h,92h,"db",85h,94h,"qau`toy",FEh
+	DB	30h,A0h,"oo",92h,"kaii",8Ah,8Ch,82h,91h,6Fh,A9h,75h,8Dh,68h,92h,8Dh,75h,FEh
+	DB	38h,B0h,62h,7Eh,89h,65h,8Bh,88h,"ise",92h,72h,92h,66h,7Eh,"ko",95h,FEh
+	DB	20h,C0h,"`tok",92h,6Bh,8Dh,"sx",A9h,"ooeau",A9h,65h,91h,"oxr",92h,6Ch,95h,FFh
+
+; Ending Demo Firebird speech 2 positioned text
+ENDING_FIREBIRD_SPEECH_2:
+	DB	28h,90h,"kek",94h,69h,89h,72h,92h,60h,8Dh,6Bh,8Dh,"kry",A9h,"ah",7Eh,6Dh,8Dh,95h,FEh
+	DB	50h,A0h,"`g",87h,90h,"bopy",A9h,"aq",82h,FEh
+	DB	30h,B0h,75h,8Dh,68h,92h,8Dh,"xii",8Ah,"xteu",A9h,"ya",87h,69h,82h,"bs",FEh
+	DB	40h,C0h,"lf",8Ch,A9h,"bee",92h,91h,"ra",88h,"xr",92h,6Ch,95h,FFh
+
+; Ending Demo Firebird speech 3 positioned text
+ENDING_FIREBIRD_SPEECH_3:
+	DB	40h,90h,65h,92h,"db",85h,94h,"j`",A9h,64h,84h,"ftja",95h,FEh
+	DB	48h,A0h,"`o",86h,"ka",A9h,"`tox",7Fh,70h,8Ch,94h,FEh
+	DB	40h,B0h,"ix",85h,75h,A9h,"`ax",A9h,60h,88h,"ef",92h,87h,95h,FFh
+
+; Hidden HOME-key secret password hint ('<aaaaa>')
+ENDING_HOME_SECRET_HINT_TEXT:
+	DB	68h,90h,64h,81h,72h,92h,"sb",95h,FEh
+	DB	58h,A0h,"dqe",89h,6Ah,7Eh,72h,92h,"ko",95h,FEh
+	DB	48h,B0h,"`h",7Fh,65h,86h,78h,A9h,"`ax",A9h,"isy",92h,79h,94h,FEh
+	DB	48h,C0h,"FULLITEMDAYOON",A9h,85h,95h,FFh
+
+; 25-entry 16-bit pointer table (AAF1h..AB22h) terminated by FFFFh (AB23h..AB24h) for Part 1
+; of the scrolling staff credits. Read 1-based via LD HL,AAEFh / CALL 4875h at AEE8h using
+; 1-based counter (CD80h).
+ENDING_CREDITS_PART1_LINE_PTR_TABLE:
+	DW	ENDING_CREDITS_LINE_STRINGS
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_LINE_AB3A
+	DW	ENDING_CREDITS_LINE_AB57
+	DW	ENDING_CREDITS_LINE_AB61
+	DW	ENDING_CREDITS_LINE_AB71
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_LINE_AB83
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_LINE_AB91
+	DW	ENDING_CREDITS_LINE_ABAA
+	DW	ENDING_CREDITS_LINE_ABB7
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_LINE_ABC7
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_LINE_ABD9
+	DW	ENDING_CREDITS_LINE_ABF2
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_LINE_ABFF
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_LINE_AC12
+	DW	ENDING_CREDITS_LINE_AC1F
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_LINE_AC2A
+	DW	FFFFh
+
+; 5-entry 16-bit pointer table (AB25h..AB2Eh) terminated by FFFFh (AB2Fh..AB30h) for Part 2
+; ('PRESENTED BY KONAMI') of the scrolling credits. Read 1-based via LD HL,AB23h / CALL
+; AEEBh at AF12h.
+ENDING_CREDITS_PART2_LINE_PTR_TABLE:
+	DW	ENDING_CREDITS_LINE_AC33
+	DW	ENDING_CREDITS_LINE_AC3E
+	DW	ENDING_CREDITS_LINE_AC42
+	DW	ENDING_CREDITS_BLANK_LINE
+	DW	ENDING_CREDITS_LINE_AC4A
+	DW	FFFFh
+
+; 2-byte shared blank spacer credit line (X=00h, FFh terminator) referenced 11 times across
+; ENDING_CREDITS_PART1/PART2_LINE_PTR_TABLE.
+ENDING_CREDITS_BLANK_LINE:
+	DB	00h,FFh
+
+; 294 bytes containing 20 scrolling-credit line records (each: 1-byte pixel X coordinate
+; followed by glyph codes and FFh terminator, rendered at Y=D8h via 4FC8h from
+; AEFEh..AF04h), plus 1 trailing FFh byte at AC58h.
+ENDING_CREDITS_LINE_STRINGS:
+	DB	"hSTAFF",FFh
+
+ENDING_CREDITS_LINE_AB3A:
+	DB	10h,"PROGRAMMER",A9h,A9h,"ULTRAMAN",A9h,"ADACHI",FFh
+
+ENDING_CREDITS_LINE_AB57:
+	DB	"pADDE",A9h,"EDA",FFh
+
+ENDING_CREDITS_LINE_AB61:
+	DB	"pYOSHIMOTO",A9h,"OHTA",FFh
+
+ENDING_CREDITS_LINE_AB71:
+	DB	"pDARENANDA",A9h,"SUZUKI",FFh
+
+ENDING_CREDITS_LINE_AB83:
+	DB	"p27INCH",A9h,"NAGAE",FFh
+
+ENDING_CREDITS_LINE_AB91:
+	DB	10h,"DESIGNER",A9h,A9h,A9h,A9h,"SHU",A9h,"IWAMOTO",FFh
+
+ENDING_CREDITS_LINE_ABAA:
+	DB	"pKI",A9h,"MIZUTANI",FFh
+
+ENDING_CREDITS_LINE_ABB7:
+	DB	"pHAAAA",A9h,"MAKITANI",FFh
+
+ENDING_CREDITS_LINE_ABC7:
+	DB	"pMETALSLAVE",A9h,"NAOKI",FFh
+
+ENDING_CREDITS_LINE_ABD9:
+	DB	10h,"SOUND",A9h,A9h,A9h,A9h,A9h,A9h,A9h,"MOAI",A9h,"SASAKI",FFh
+
+ENDING_CREDITS_LINE_ABF2:
+	DB	"pSG",A9h,"FURUKAWA",FFh
+
+ENDING_CREDITS_LINE_ABFF:
+	DB	"8SPECIAL",A9h,"THANKS",A9h,"TO",FFh
+
+ENDING_CREDITS_LINE_AC12:
+	DB	"PAKEMI",A9h,"KAMIO",FFh
+
+ENDING_CREDITS_LINE_AC1F:
+	DB	"XROOM",A9h,"1013",FFh
+
+ENDING_CREDITS_LINE_AC2A:
+	DB	"`AND",A9h,"YOU",FFh
+
+ENDING_CREDITS_LINE_AC33:
+	DB	"XPRESENTED",FFh
+
+ENDING_CREDITS_LINE_AC3E:
+	DB	"xBY",FFh
+
+ENDING_CREDITS_LINE_AC42:
+	DB	"hKONAMI",FFh
+
+ENDING_CREDITS_LINE_AC4A:
+	DB	"P:KONAMI",A9h,"1987",FFh
+	DB	FFh
+
+; 167 bytes of FFh alignment padding before Ending Demo entry point at AD00h.
+BANK06_MID_PADDING_FF:
+	DS	00A7h,FFh
+
+; Entry point for MainState 0Ch (Ending Demo, called from Bank 00 460Eh with Bank 06 in page
+; 3). Increments FrameCounter (C4B0h) and dispatches EndingDemoState (CD00h, 00h..11h) via
+; InlineWordDispatch (40AEh).
+ENDING_DEMO_MAIN:
+	LD	HL,FRAME_COUNTER
+	INC	(HL)
+	LD	A,(ENDING_DEMO_STATE)
+	CALL	INLINE_WORD_DISPATCH
+
+; 18-entry inline dispatch jump table (AD0Ah..AD2Dh) for EndingDemoState (CD00h = 00h..11h)
+; following CALL 40AEh at AD07h.
+ENDING_DEMO_STATE_TABLE:
+	DW	ENDING_STATE_00_INIT_SCENE1
+	DW	ENDING_STATE_01_START_ACTORS
+	DW	ENDING_STATE_02_FADE_IN_SCENE1
+	DW	ENDING_STATE_03_RUN_TIMED_SCRIPT
+	DW	ENDING_STATE_04_INIT_SCENE2
+	DW	ENDING_STATE_WAIT_TIMER
+	DW	ENDING_STATE_06_FADE_IN_FIREBIRD
+	DW	ENDING_STATE_07_CYCLE_MESSAGES
+	DW	ENDING_STATE_08_POLL_HOME_SECRET
+	DW	ENDING_STATE_0A_PREPARE_CREDITS_GFX
+	DW	ENDING_STATE_WAIT_TIMER
+	DW	ENDING_STATE_0B_FADE_IN_CREDITS_BG
+	DW	ENDING_STATE_0C_TRIGGER_CREDITS_BGM
+	DW	ENDING_STATE_0D_SCROLL_CREDITS
+	DW	ENDING_STATE_10_FINAL_HOLD
+	DW	ENDING_STATE_0F_PLAY_END_CHIME
+	DW	ENDING_STATE_WAIT_TIMER
+	DW	CLEAR_AUDIO_LOCK_AND_ENTER_GAMEPLAY
+
+; State handlers for Ending Demo states 00h..0Fh: Scene 1 temple ascent setup, palette
+; fades, timed actor script playback, Scene 2 Firebird reveal, 3-part Firebird speech with
+; color-12 RGB text fades, hidden HOME-key bonus check (SNSMAT row 8 bit 1 -> 'aaaaa' hint
+; at AAB1h), and scrolling credits outer loop (ending with CALL 40AEh at AED1h).
+ENDING_STATE_00_INIT_SCENE1:
+	CALL	RUN_ENDING_PALETTE_FADE_OUT
+	LD	A,(ENDING_FADE_DONE_FLAG)
+	OR	A
+	RET	Z
+	CALL	INITIALIZE_LEVEL_MAP
+	CALL	CLEAR_VRAM_AND_ENABLE_DISPLAY
+	LD	BC,0F07h
+	CALL	BIOS_WRTVDP
+	CALL	LOAD_ENDING_SCENE1_GFX
+	LD	A,05h
+	LD	(SPRITE_SET_BANK_PARAM),A
+	LD	HL,ENDING_SCENE1_TEMPLE_TILEMAP
+	LD	BC,1808h
+	LD	DE,0090h
+	CALL	DRAW_ENDING_OR_STAGE_TILEMAP_RECT
+	CALL	CLEAR_LEVEL_TILE_BUFFER_E000
+	CALL	DRAW_ENDING_SCENE1_FLOOR
+	CALL	CLEAR_STAGE_TILE_VIEWPORT_VRAM
+	LD	A,1Eh
+	JR	SET_ENDING_TIMER_AND_ADVANCE
+
+; Wait timer, load graphics list 604Ch, init actors/sparkles (B1CEh)
+ENDING_STATE_01_START_ACTORS:
+	LD	HL,ATTRACT_OR_ENDING_TIMER
+	DEC	(HL)
+	RET	NZ
+	LD	HL,ENDING_ALTERNATE_DIRECT_SPRITE_CMD_LIST
+	CALL	EXEC_BANK07_DIRECT_SPRITE_LIST_HL
+	CALL	CLEAR_ENDING_OBJ31_PRESENCE
+	CALL	INIT_ENDING_SCENE1_ACTORS
+	JR	ADVANCE_ENDING_DEMO_STATE
+
+; Run ending objects and fade in Scene 1 palette (B0A0h)
+ENDING_STATE_02_FADE_IN_SCENE1:
+	CALL	RUN_ENDING_OBJECTS_FRAME
+	LD	HL,ENDING_V9938_PALETTES
+	CALL	RUN_ENDING_PALETTE_FADE_IN
+	LD	A,(ENDING_FADE_DONE_FLAG)
+	OR	A
+	RET	Z
+	JR	ADVANCE_ENDING_DEMO_STATE
+
+; Execute timed Scene 1 ascent script (B201h) and object updates (AF7Ah)
+ENDING_STATE_03_RUN_TIMED_SCRIPT:
+	CALL	STEP_ENDING_SCENE1_SCRIPT
+	JP	RUN_ENDING_OBJECTS_FRAME
+
+; Fade out, draw Scene 2 Firebird portrait (A88Bh), spawn 10 Obj 33h sparkles (B35Bh)
+ENDING_STATE_04_INIT_SCENE2:
+	CALL	RUN_ENDING_OBJECTS_FRAME
+	CALL	RUN_ENDING_PALETTE_FADE_OUT
+	LD	A,(ENDING_FADE_DONE_FLAG)
+	OR	A
+	RET	Z
+	CALL	INITIALIZE_LEVEL_MAP
+	CALL	CLEAR_VRAM_AND_ENABLE_DISPLAY
+	CALL	LOAD_ENDING_SCENE2_GFX
+	CALL	CLEAR_LEVEL_TILE_BUFFER_E000
+	CALL	DRAW_ENDING_SCENE2_FIREBIRD
+	CALL	CLEAR_STAGE_TILE_VIEWPORT_VRAM
+	CALL	SPAWN_ENDING_OBJ33_BATCH
+	LD	A,0Fh
+
+; Store A into (C10Eh) and increment EndingDemoState (CD00h)
+SET_ENDING_TIMER_AND_ADVANCE:
+	LD	(ATTRACT_OR_ENDING_TIMER),A
+
+; Increment EndingDemoState (CD00h) and return
+ADVANCE_ENDING_DEMO_STATE:
+	LD	HL,ENDING_DEMO_STATE
+	INC	(HL)
+	RET
+
+; Shared countdown state (states 05h, 09h, 0Eh): DEC (C10Eh), advance when 0
+ENDING_STATE_WAIT_TIMER:
+	LD	HL,ATTRACT_OR_ENDING_TIMER
+	DEC	(HL)
+	RET	NZ
+	JR	ADVANCE_ENDING_DEMO_STATE
+
+; Fade in Scene 2 palette (B0C0h) and print first Firebird message (A9D1h)
+ENDING_STATE_06_FADE_IN_FIREBIRD:
+	CALL	RUN_ENDING_OBJECTS_FRAME
+	LD	HL,ENDING_SCENE2_V9938_PALETTE
+	CALL	RUN_ENDING_PALETTE_FADE_IN
+	LD	A,(ENDING_FADE_DONE_FLAG)
+	OR	A
+	RET	Z
+	IF	HINOTORI_ENHANCED
+	XOR	A
+	CALL	DRAW_ENDING_FIREBIRD_SPEECH_A
+	ELSE
+	LD	HL,ENDING_FIREBIRD_POSITIONED_MESSAGES
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+	ENDIF
+	XOR	A
+	JR	SET_ENDING_TIMER_AND_ADVANCE
+
+; Fade color 12 out/in (B02Dh/B05Eh) across the 3 Firebird speeches (A9CBh)
+ENDING_STATE_07_CYCLE_MESSAGES:
+	CALL	RUN_ENDING_OBJECTS_FRAME
+	LD	A,(ENDING_SUBSTATE)
+	DEC	A
+	JR	Z,ENDING_MSG_FADE_OUT_STEP
+	JP	P,ENDING_MSG_FADE_IN_STEP
+	LD	A,(ENDING_MESSAGE_INDEX)
+	IF	HINOTORI_ENHANCED
+	LD	HL,LANGUAGE_MODE_FLAG
+	LD	C,02h
+	BIT	00h,(HL)
+	JR	Z,.check_last_speech
+	INC	C
+
+.check_last_speech:
+	CP	C
+	ELSE
+	CP	02h
+	ENDIF
+	JR	Z,ADVANCE_ENDING_DEMO_STATE
+	LD	HL,ATTRACT_OR_ENDING_TIMER
+	DEC	(HL)
+	RET	NZ
+	LD	HL,ENDING_COLOR12_RGB_WORD
+	LD	(HL),77h
+	INC	HL
+	LD	(HL),07h
+
+; Set 7-step color-12 fade counter and advance Ending Demo substate
+START_ENDING_MESSAGE_FADE_STEPS:
+	LD	A,07h
+	LD	(ENDING_COLOR12_FADE_CNT),A
+	JP	ADVANCE_ENDING_SUBSTATE
+
+; Step color-12 fade-out, clear text band, and print next speech from A9CBh
+ENDING_MSG_FADE_OUT_STEP:
+	CALL	FADE_OUT_VDP_COLOR12_STEP
+	RET	NZ
+	LD	HL,0090h
+	LD	BC,0040h
+%if	HINOTORI_ENHANCED
+	XOR	A
+%else
+	LD	A,00h
+%endif
+	CALL	COPY_SCROLLED_VRAM_RECT_TO_PAGE
+	LD	HL,ENDING_MESSAGE_INDEX
+	INC	(HL)
+	LD	A,(HL)
+	IF	HINOTORI_ENHANCED
+	CALL	DRAW_ENDING_FIREBIRD_SPEECH_A
+	ELSE
+	LD	HL,ENDING_FIREBIRD_MESSAGE_PTR_TABLE
+	CALL	READ_WORD_FROM_HL_TABLE_A
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+	ENDIF
+	JR	START_ENDING_MESSAGE_FADE_STEPS
+
+; Step color-12 fade-in until target RGB (77h, 07h) reached
+ENDING_MSG_FADE_IN_STEP:
+	CALL	FADE_IN_VDP_COLOR12_STEP
+	RET	NZ
+	XOR	A
+	LD	(ATTRACT_OR_ENDING_TIMER),A
+	LD	(ENDING_SUBSTATE),A
+	RET
+
+; Wait post-speech delay while polling HOME key for hidden 'aaaaa' message
+ENDING_STATE_08_POLL_HOME_SECRET:
+	CALL	RUN_ENDING_OBJECTS_FRAME
+	LD	A,(ENDING_HOME_BONUS_SHOWN)
+	AND	A
+	CALL	Z,POLL_ENDING_HOME_KEY_SECRET
+	JP	ENDING_STATE_WAIT_TIMER
+
+; Check BIOS_SNSMAT row 8 bit 1 (HOME); if pressed, play SFX 34h and show AAB1h
+POLL_ENDING_HOME_KEY_SECRET:
+	LD	A,08h
+	CALL	BIOS_SNSMAT
+	BIT	01h,A
+	RET	NZ
+	LD	HL,0090h
+	LD	BC,0040h
+%if	HINOTORI_ENHANCED
+	XOR	A
+%else
+	LD	A,00h
+%endif
+	CALL	COPY_SCROLLED_VRAM_RECT_TO_PAGE
+	LD	A,34h
+	CALL	QUEUE_SOUND_COMMAND_IF_UNLOCKED
+	LD	HL,ENDING_HOME_SECRET_HINT_TEXT
+	IF	HINOTORI_ENHANCED
+	LD	A,(LANGUAGE_MODE_FLAG)
+	OR	A
+	JR	Z,.draw_home_secret_hint
+	LD	HL,ENDING_HOME_SECRET_HINT_TEXT_EN
+
+.draw_home_secret_hint:
+	CALL	DRAW_BANK05_SCROLLED_TEXT_HL
+	ELSE
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+	ENDIF
+	XOR	A
+	LD	(ATTRACT_OR_ENDING_TIMER),A
+	INC	A
+	LD	(ENDING_HOME_BONUS_SHOWN),A
+	RET
+
+; Fade out and load credits graphics/tiles (6468h / 6050h)
+ENDING_STATE_0A_PREPARE_CREDITS_GFX:
+	CALL	RUN_ENDING_PALETTE_FADE_OUT
+	LD	A,(ENDING_FADE_DONE_FLAG)
+	OR	A
+	RET	Z
+	CALL	INITIALIZE_LEVEL_MAP
+	CALL	CLEAR_VRAM_AND_ENABLE_DISPLAY
+	IF	HINOTORI_ENHANCED
+	CALL	LOAD_PUBLISHER_OR_FIREBIRD_CREDITS_GFX
+	LD	A,(LANGUAGE_MODE_FLAG)
+	OR	A
+	JR	Z,.draw_ending_jp_emblems
+	LD	DE,3838h
+	CALL	DRAW_FIREBIRD_CREDITS_LOGO_AT_DE
+	JR	.done_ending_emblems
+
+.draw_ending_jp_emblems:
+	LD	DE,5020h
+	LD	HL,6050h
+	CALL	DRAW_PUBLISHER_EMBLEM_TILEMAPS
+
+.done_ending_emblems:
+	ELSE
+	LD	HL,PUBLISHER_LOGO_CREDITS_GFX_DESCRIPTOR
+	LD	A,04h
+	CALL	EXECUTE_GFX_DESCRIPTOR_AT_VRAM_PAGE_A
+	LD	DE,5020h
+	LD	HL,6050h
+	CALL	DRAW_PUBLISHER_EMBLEM_TILEMAPS
+	ENDIF
+	LD	A,1Eh
+	JP	SET_ENDING_TIMER_AND_ADVANCE
+
+; Fade in palette (B0C0h) and blit captured emblem block (AFF6h)
+ENDING_STATE_0B_FADE_IN_CREDITS_BG:
+	LD	HL,ENDING_SCENE2_V9938_PALETTE
+	CALL	RUN_ENDING_PALETTE_FADE_IN
+	LD	A,(ENDING_FADE_DONE_FLAG)
+	OR	A
+	RET	Z
+	CALL	BLIT_ENDING_EMBLEM_TILEBLOCK
+	XOR	A
+	JP	SET_ENDING_TIMER_AND_ADVANCE
+
+; Countdown delay and trigger ending credits music command 67h at tick 5Ah
+ENDING_STATE_0C_TRIGGER_CREDITS_BGM:
+	LD	HL,ATTRACT_OR_ENDING_TIMER
+	DEC	(HL)
+	JR	Z,RESET_ENDING_SUBSTATE_FOR_CREDITS
+	LD	A,(HL)
+	CP	5Ah
+	RET	NZ
+	LD	A,67h
+	LD	(SND_FADEOUT_TARGET_ID),A
+	RET
+
+; Clear (CD01h), set timer=8, and advance to scrolling credits state 0Dh
+RESET_ENDING_SUBSTATE_FOR_CREDITS:
+	XOR	A
+	LD	(ENDING_SUBSTATE),A
+	LD	A,08h
+	JP	SET_ENDING_TIMER_AND_ADVANCE
+
+; Increment vertical scroll (C384h += 80h), update SAT, and every 32 frames dispatch (CD01h)
+; via CALL 40AEh
+ENDING_STATE_0D_SCROLL_CREDITS:
+	LD	HL,(WORLD_SCROLL_POS)
+	LD	DE,0080h
+	ADD	HL,DE
+	LD	(WORLD_SCROLL_POS),HL
+	CALL	WRITE_VERTICAL_SCROLL_REGISTER
+	CALL	SELECT_HIDDEN_SPRITE_BUFFER
+	CALL	UPLOAD_ROTATED_SPRITE_ATTRIBUTES
+	LD	A,(FRAME_COUNTER)
+	AND	1Fh
+	RET	NZ
+	LD	HL,00F0h
+	LD	BC,0010h
+%if	HINOTORI_ENHANCED
+	XOR	A
+%else
+	LD	A,00h
+%endif
+	CALL	COPY_SCROLLED_VRAM_RECT_TO_PAGE
+	LD	A,(ENDING_SUBSTATE)
+	CALL	INLINE_WORD_DISPATCH
+
+; 5-entry inline dispatch table (AED4h..AEDDh: AEDEh, AEE8h, AF07h, AF12h, AF1Eh) for
+; EndingSubstate (CD01h = 0..4) during state 0Dh scrolling credits.
+ENDING_CREDITS_SUBSTATE_TABLE:
+	DW	CREDITS_SUBSTATE_0_INITIAL_DELAY
+	DW	CREDITS_SUBSTATE_1_PRINT_PART1
+	DW	CREDITS_SUBSTATE_2_INTER_PART_GAP
+	DW	CREDITS_SUBSTATE_3_PRINT_PART2
+	DW	CREDITS_SUBSTATE_4_FINAL_SCROLL
+
+; Scrolling credits substate handlers (0..4 reading AAF1h and AB25h line tables), final
+; Ending Demo states 0Fh..11h (sound 74h and halt/loop), multi-frame V9938 palette fade
+; engine (AF3Ch/AF41h), ending object frame runner (AF7Ah), tilemap upload helpers
+; (AFA6h/AFAFh/AFBAh), and timed-script table stepper (AFC6h, ending with CALL 40AEh at
+; AFDCh).
+CREDITS_SUBSTATE_0_INITIAL_DELAY:
+	LD	HL,ATTRACT_OR_ENDING_TIMER
+	DEC	(HL)
+	RET	NZ
+
+; Increment EndingSubstate (CD01h)
+ADVANCE_ENDING_SUBSTATE:
+	LD	HL,ENDING_SUBSTATE
+	INC	(HL)
+	RET
+
+; Fetch next 1-based line from AAF1h (AAEFh+2*idx); advance on FFFFh, else render at Y=D8h
+CREDITS_SUBSTATE_1_PRINT_PART1:
+	LD	HL,ENDING_CREDITS_PART1_LINE_PTR_TABLE - 02h
+
+; Shared 1-based credits line fetcher & 4FC8h renderer
+PRINT_NEXT_CREDITS_LINE_FROM_HL:
+	LD	A,(ENDING_CREDITS_LINE_IDX)
+	INC	A
+	LD	(ENDING_CREDITS_LINE_IDX),A
+	CALL	READ_WORD_FROM_HL_TABLE_A
+	LD	A,H
+	INC	A
+	LD	A,09h
+	LD	(ATTRACT_OR_ENDING_TIMER),A
+	JR	Z,ADVANCE_ENDING_SUBSTATE
+	LD	D,(HL)
+	INC	HL
+	LD	E,D8h
+	LD	C,FFh
+	JP	DRAW_SCROLLED_CREDIT_LINE_AT_E	; asm/banks/bank00.asm
+
+; Wait 9-step gap between Part 1 and Part 2 credits and reset (CD80h)=0
+CREDITS_SUBSTATE_2_INTER_PART_GAP:
+	LD	HL,ATTRACT_OR_ENDING_TIMER
+	DEC	(HL)
+	RET	NZ
+	XOR	A
+	LD	(ENDING_CREDITS_LINE_IDX),A
+	JR	ADVANCE_ENDING_SUBSTATE
+
+; Fetch next 1-based line from AB25h (AB23h+2*idx) with 5-step spacing
+CREDITS_SUBSTATE_3_PRINT_PART2:
+	LD	HL,ENDING_CREDITS_PART2_LINE_PTR_TABLE - 02h
+	CALL	PRINT_NEXT_CREDITS_LINE_FROM_HL
+	LD	A,05h
+	LD	(ATTRACT_OR_ENDING_TIMER),A
+	RET
+
+; Wait final scroll-off delay, then set (C10Eh)=78h and advance EndingDemoState
+CREDITS_SUBSTATE_4_FINAL_SCROLL:
+	LD	HL,ATTRACT_OR_ENDING_TIMER
+	DEC	(HL)
+	RET	NZ
+	LD	A,78h
+	JP	SET_ENDING_TIMER_AND_ADVANCE
+
+; Request sound 74h and wait 5Ah frames
+ENDING_STATE_0F_PLAY_END_CHIME:
+	LD	A,74h
+	LD	(SND_FADEOUT_TARGET_ID),A
+	LD	A,5Ah
+	JP	SET_ENDING_TIMER_AND_ADVANCE
+
+; Countdown to final idle hold state 11h
+ENDING_STATE_10_FINAL_HOLD:
+	LD	HL,ATTRACT_OR_ENDING_TIMER
+	DEC	(HL)
+	RET	NZ
+	LD	A,0Ah
+	JP	SET_ENDING_TIMER_AND_ADVANCE
+
+; Set fade-in mode (CD83h=1) and run V9938 palette fade state machine
+RUN_ENDING_PALETTE_FADE_IN:
+	LD	A,01h
+	LD	(ENDING_FADE_MODE),A
+
+; Two-phase V9938 palette fade-out/in controller using Bank 00 5B5Eh/5B70h/5B31h/5B25h
+RUN_ENDING_PALETTE_FADE_OUT:
+	LD	A,(ENDING_FADE_PHASE)
+	DEC	A
+	JR	Z,.loc_af5e
+	PUSH	HL
+	CALL	READ_CURRENT_V9938_PALETTE_FROM_VRAM
+	POP	HL
+	LD	A,(ENDING_FADE_MODE)
+	AND	A
+	JR	Z,.loc_af55
+	CALL	BEGIN_CUSTOM_PALETTE_FADE_IN
+
+.loc_af55:
+	XOR	A
+	LD	(ENDING_FADE_DONE_FLAG),A
+	LD	HL,ENDING_FADE_PHASE
+	INC	(HL)
+	RET
+
+.loc_af5e:
+	LD	A,(ENDING_FADE_MODE)
+	AND	A
+	JR	NZ,.loc_af74
+	CALL	START_PALETTE_FADE_OUT_TO_BLACK
+	RET	NZ
+
+.loc_af68:
+	XOR	A
+	LD	(ENDING_FADE_MODE),A
+	LD	(ENDING_FADE_PHASE),A
+	INC	A
+	LD	(ENDING_FADE_DONE_FLAG),A
+	RET
+
+.loc_af74:
+	CALL	START_TITLE_PALETTE_FADE_IN
+	RET	NZ
+	JR	.loc_af68
+
+; Update scroll register, hidden sprite buffer, and Bank 01 object/sprite pipelines for
+; ending
+RUN_ENDING_OBJECTS_FRAME:
+	CALL	WRITE_VERTICAL_SCROLL_REGISTER
+	CALL	SELECT_HIDDEN_SPRITE_BUFFER
+	CALL	CLEAR_DYNAMIC_OBJECT_SAT_AND_COLORS
+	CALL	UPDATE_ALL_GAMEPLAY_AND_AUX_OBJECTS
+	CALL	PREPARE_GAMEPLAY_OBJECT_SPRITES
+	CALL	RENDER_GAMEPLAY_OBJECT_SPRITES
+	CALL	DISPATCH_TERRAIN_OBJECT_INIT
+	CALL	CHECK_PLAYER_AND_WEAPON_COLLISIONS
+%if	HINOTORI_ENHANCED
+	JP	UPLOAD_ROTATED_SPRITE_ATTRIBUTES	; asm/banks/bank00.asm
+%else
+	CALL	UPLOAD_ROTATED_SPRITE_ATTRIBUTES
+	RET
+%endif
+
+; Clear 3 bytes at CF00h + 2*31h
+CLEAR_ENDING_OBJ31_PRESENCE:
+	LD	A,31h
+	LD	HL,OBJECT_PRESENCE_TABLE
+	CALL	ADD_A_TO_HL
+	LD	B,03h
+	XOR	A
+
+.loc_afa1:
+	LD	(HL),A
+	INC	HL
+	DJNZ	.loc_afa1
+	RET
+
+; Clear 0400h bytes at E000h via 5DE9h
+CLEAR_LEVEL_TILE_BUFFER_E000:
+	LD	HL,LEVEL_TILE_BUFFER
+	LD	BC,03FFh
+	JP	ZERO_RAM_BLOCK_HL_BC	; asm/banks/bank00.asm
+
+; Render 32x3 floor tilemap A96Bh at DE=00BCh via 51C2h
+DRAW_ENDING_SCENE1_FLOOR:
+	LD	HL,ENDING_SCENE1_FLOOR_TILEMAP
+	LD	BC,2003h
+	LD	DE,00BCh
+	JR	DRAW_ENDING_SCENE_TILEMAP_COMMON
+
+; Render 16x14 Firebird tilemap A88Bh at DE=4010h via 51C2h
+DRAW_ENDING_SCENE2_FIREBIRD:
+	LD	HL,ENDING_SCENE2_FIREBIRD_TILEMAP
+	LD	BC,100Eh
+	LD	DE,4010h
+
+; Shared tail jump into DRAW_SCROLLED_RECT_TILEMAP_TO_VRAM for Ending Demo backgrounds
+DRAW_ENDING_SCENE_TILEMAP_COMMON:
+	JP	DRAW_SCROLLED_RECT_TILEMAP_TO_VRAM	; asm/banks/bank00.asm
+
+; Decrement 16-bit timer HL; when 0, load 4-byte script record at DE + 4*A
+STEP_TIMED_SCRIPT_ENTRY:
+	EX	AF,AF'
+	DEC	HL
+	LD	A,H
+	OR	L
+	RET	NZ
+	EX	AF,AF'
+	ADD	A,A
+	ADD	A,A
+	LD	L,A
+	LD	H,00h
+	ADD	HL,DE
+	LD	A,(HL)
+	INC	HL
+	LD	B,(HL)
+	INC	HL
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	EX	DE,HL
+	CP	A
+	RET
+
+; Dispatch timed script action A (0..5) via CALL 40AEh
+DISPATCH_TIMED_SCRIPT_ACTION:
+	CALL	INLINE_WORD_DISPATCH
+
+; 6-entry inline dispatch table (AFDFh..AFEAh: B256h, B25Ch, AFEBh, AFF0h, AFF0h, ADB1h) for
+; timed Scene 1 script actions 0..5.
+ENDING_TIMED_SCRIPT_ACTION_TABLE:
+	DW	SCRIPT_ACTION_0_START_ACTOR0
+	DW	SCRIPT_ACTION_1_START_ACTOR1
+	DW	SCRIPT_ACTION_2_SPAWN_TERRAIN09
+	DW	SCRIPT_ACTION_3_4_ADVANCE_TERRAIN09
+	DW	SCRIPT_ACTION_3_4_ADVANCE_TERRAIN09
+	DW	ADVANCE_ENDING_DEMO_STATE
+
+; Timed Scene 1 script action handlers (spawn Terrain 09 via 7349h, advance Terrain 09 phase
+; at D001h), emblem VRAM blit (AFF6h), Scene 1 upward camera scroll coupled to EndingActor1
+; velocity (B004h), and per-channel V9938 palette register 12 RGB fade-out (B02Dh) and
+; fade-in (B05Eh) helpers.
+SCRIPT_ACTION_2_SPAWN_TERRAIN09:
+	LD	B,09h
+	JP	UPDATE_ACTIVE_TERRAIN_OBJECTS	; asm/banks/bank01.asm
+
+; Increment Terrain Object 0 phase byte (D001h)
+SCRIPT_ACTION_3_4_ADVANCE_TERRAIN09:
+	LD	HL,TERRAIN_OBJ0_PHASE
+	INC	(HL)
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced single-byte RET stub
+ENDING_STATE_11_IDLE_RET:
+	RET
+	ENDIF
+
+; Copy 32x32 white '完' ("THE END") kanji block from VRAM Page 1 (E0h, 90h) to Page 0 (70h, 90h)
+BLIT_ENDING_EMBLEM_TILEBLOCK:
+	LD	DE,7090h
+	IF	HINOTORI_ENHANCED
+	LD	A,(LANGUAGE_MODE_FLAG)
+	OR	A
+	JR	Z,.blit_jp_end_kanji
+	LD	HL,4800h
+	LD	(SUBSCREEN_TILE_Y_OFFSET),HL
+	CALL	MAP_FONT_TITLE_BANKS_13_14_15
+	LD	HL,ENDING_THE_END_TILEMAP_4X2
+	LD	BC,0402h
+	CALL	RENDER_STAGE_OR_EMBLEM_TILEMAP
+	JP	RESTORE_DEFAULT_CORE_BANKS	; asm/banks/bank00.asm
+
+.blit_jp_end_kanji:
+	ENDIF
+	LD	HL,VRAM_PAGE1_END_KANJI_32
+	LD	BC,2020h
+	LD	A,01h
+	JP	COPY_VRAM_RECT_HMMM	; asm/banks/bank00.asm
+
+; Subtract (CE87h) velocity from WorldScrollPosition (C384h) until (CE98h) >= 20h
+SCROLL_ENDING_TEMPLE_WITH_ACTOR1:
+	LD	A,(ENDING_SCROLL_STOP_FLAG)
+	AND	A
+	RET	NZ
+	LD	HL,(WORLD_SCROLL_POS)
+	LD	DE,(ENDING_ACTOR1_VELOCITY)
+	AND	A
+	SBC	HL,DE
+	LD	(WORLD_SCROLL_POS),HL
+	LD	A,(ENDING_ACTOR1_POS_MID)
+	SUB	20h
+	JR	C,.loc_b022
+	LD	A,01h
+	LD	(ENDING_SCROLL_STOP_FLAG),A
+
+.loc_b022:
+	LD	HL,00D5h
+	LD	BC,0002h
+%if	HINOTORI_ENHANCED
+	XOR	A
+%else
+	LD	A,00h
+%endif
+	JP	COPY_SCROLLED_VRAM_RECT_TO_PAGE	; asm/banks/bank00.asm
+
+; Every even frame, decrement R/B/G nibbles of (CD87h..CD88h) toward 0 and write VDP color
+; 12 (4D03h)
+FADE_OUT_VDP_COLOR12_STEP:
+	LD	A,(FRAME_COUNTER)
+	AND	01h
+	RET	NZ
+	LD	HL,ENDING_COLOR12_RGB_WORD
+	LD	C,0Ch
+	CALL	DECREMENT_RGB_NIBBLES_AND_WRITE_PAL
+	LD	HL,ENDING_COLOR12_FADE_CNT
+	DEC	(HL)
+	RET
+
+; Decrement high/low nibbles of (HL) and low nibble of (HL+1), then JP 4D03h
+DECREMENT_RGB_NIBBLES_AND_WRITE_PAL:
+	LD	A,(HL)
+	AND	F0h
+	JR	Z,.loc_b047
+	SUB	10h
+
+.loc_b047:
+	LD	D,A
+	LD	A,(HL)
+	AND	0Fh
+	JR	Z,.loc_b04e
+	DEC	A
+
+.loc_b04e:
+	OR	D
+	LD	(HL),A
+	LD	D,A
+	INC	HL
+	LD	A,(HL)
+	AND	0Fh
+	JR	Z,.loc_b058
+	DEC	A
+
+.loc_b058:
+	LD	(HL),A
+	LD	E,A
+	LD	A,C
+	JP	WRITE_PALETTE_ENTRY_TO_VDP	; asm/banks/bank00.asm
+
+; Every even frame, increment R/B/G nibbles of (CD87h..CD88h) toward (77h, 07h) and write
+; VDP color 12
+FADE_IN_VDP_COLOR12_STEP:
+	LD	A,(FRAME_COUNTER)
+	AND	01h
+	RET	NZ
+	LD	HL,ENDING_COLOR12_RGB_WORD
+	LD	BC,070Ch
+	EXX
+	LD	BC,0707h
+	EXX
+	CALL	INCREMENT_RGB_NIBBLES_AND_WRITE_PAL
+	LD	HL,ENDING_COLOR12_FADE_CNT
+	DEC	(HL)
+	RET
+
+; Increment R/B/G nibbles up to target maxima in B / B' / C' and JP 4D03h
+INCREMENT_RGB_NIBBLES_AND_WRITE_PAL:
+	LD	A,(HL)
+	AND	F0h
+	CP	B
+	JR	Z,.loc_b07f
+	ADD	A,10h
+
+.loc_b07f:
+	LD	D,A
+	EXX
+	LD	A,B
+	EXX
+	LD	B,A
+	LD	A,(HL)
+	AND	0Fh
+	CP	B
+	JR	Z,.loc_b08b
+	INC	A
+
+.loc_b08b:
+	OR	D
+	LD	(HL),A
+	LD	D,A
+	EXX
+	LD	A,C
+	EXX
+	LD	B,A
+	INC	HL
+	LD	A,(HL)
+	AND	0Fh
+	CP	B
+	JR	Z,.loc_b09a
+	INC	A
+
+.loc_b09a:
+	LD	(HL),A
+	LD	E,A
+	LD	A,C
+	JP	WRITE_PALETTE_ENTRY_TO_VDP	; asm/banks/bank00.asm
+
+; Two 16-color (32-byte) V9938 RGB palettes: Scene 1 temple palette at B0A0h..B0BFh (loaded
+; at AD79h) and Scene 2 Firebird/credits palette at B0C0h..B0DFh (loaded at ADC0h and
+; AE7Fh).
+ENDING_V9938_PALETTES:
+	DB	00h,00h,53h,04h,61h,02h,71h,00h,24h,03h,77h,07h,00h,00h,00h,00h
+	DB	24h,02h,00h,00h,00h,00h,00h,00h,12h,01h,51h,01h,74h,05h,00h,00h
+
+; 16-color V9938 palette for Ending Scene 2 & staff credits
+ENDING_SCENE2_V9938_PALETTE:
+	DB	00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,57h,05h,00h,00h
+	DB	00h,00h,00h,00h,70h,00h,00h,00h,77h,07h,77h,07h,72h,03h,00h,00h
+
+; Six 4-byte timed script records (action_id, param_b, duration_lo, duration_hi) at
+; B0E0h..B0F7h driving Scene 1 ascent: (0,0,0008h), (1,0,00F0h), (2,0,005Ah), (3,0,005Ah),
+; (4,0,0078h), (5,0,0000h).
+ENDING_TIMED_SCENE_SCRIPT:
+	DB	00h,00h,08h,00h
+	DB	01h,00h,F0h,00h
+	DB	02h,00h,5Ah,00h
+	DB	03h,00h,5Ah,00h
+	DB	04h,00h,78h,00h
+	DB	05h,00h,00h,00h
+
+; Spawners for Ending Scene 1 gameplay objects: single Object 31h at (80h, DCh) via Bank 01
+; 6D62h (B0F8h), and batch of 8 Object 32h particles from B115h coordinate table (B100h).
+SPAWN_ENDING_OBJ31:
+	LD	DE,80DCh
+	LD	C,31h
+	JP	SPAWN_GAMEPLAY_OBJECT_TYPE_A	; asm/banks/bank01.asm
+
+; Spawn 8 Ending Object 32h instances using (Y, X) pairs at B115h
+SPAWN_ENDING_OBJ32_BATCH:
+%if	HINOTORI_ENHANCED
+	LD	BC,0832h
+%else
+	LD	B,08h
+	LD	C,32h
+%endif
+	LD	HL,ENDING_OBJ32_SPAWN_COORDS
+
+.loc_b107:
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	PUSH	BC
+	PUSH	HL
+	CALL	SPAWN_GAMEPLAY_OBJECT_TYPE_A
+	POP	HL
+	POP	BC
+	DJNZ	.loc_b107
+	RET
+
+; Eight 2-byte (Y, X) initial coordinate pairs (B115h..B124h) read by
+; SPAWN_ENDING_OBJ32_BATCH (B100h).
+ENDING_OBJ32_SPAWN_COORDS:
+	DB	20h,80h
+	DB	40h,50h
+	DB	50h,B0h
+	DB	60h,A0h
+	DB	70h,60h
+	DB	90h,C0h
+	DB	A0h,C0h
+	DB	B0h,40h
+
+; Per-frame update handlers registered in Bank 01 StageObjectUpdateTable (68D6h -> B125h for
+; Obj 31h; 68D8h -> B174h for Obj 32h), plus 24-bit actor position difference helper
+; (B165h).
+UPDATE_ENDING_OBJ31:
+	LD	HL,ENDING_ACTOR0_RECORD
+	LD	DE,0017h
+	ADD	HL,DE
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	C,(HL)
+	EXX
+	LD	HL,ENDING_ACTOR1_RECORD
+	LD	DE,0017h
+	ADD	HL,DE
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	C,(HL)
+	EXX
+	CALL	SUBTRACT_24BIT_ACTOR_POS
+	PUSH	BC
+	PUSH	DE
+	EXX
+	POP	DE
+	POP	BC
+	EXX
+	LD	HL,00CCh
+	LD	E,00h
+	LD	D,L
+	LD	C,H
+	CALL	SUBTRACT_24BIT_ACTOR_POS
+	LD	(IX+OBJ_Y_FRAC),E
+	LD	(IX+OBJ_Y),D
+	LD	A,(IX+OBJ_ACTION_TIMER)
+	DEC	A
+	LD	(IX+OBJ_ACTION_TIMER),A
+	RET	NZ
+	LD	(IX+OBJ_ACTION_TIMER),08h
+	RET
+
+; 24-bit subtraction helper (C:DE -= C':DE') used to position Obj 31h
+SUBTRACT_24BIT_ACTOR_POS:
+	EX	DE,HL
+	EXX
+	PUSH	DE
+	EXX
+	POP	DE
+	AND	A
+	SBC	HL,DE
+	LD	A,C
+	EXX
+	SBC	A,C
+	EXX
+	EX	DE,HL
+	LD	C,A
+	RET
+
+; Bank 01 68D8h update handler for Obj 32h: cycle sprite via 70FDh (DE=B197h), scale
+; velocity (B199h), move (792Ah), wrap Y at D4h
+UPDATE_ENDING_OBJ32:
+	LD	B,08h
+	LD	DE,ENDING_OBJ32_SPRITE_PARAMS
+	CALL	ADVANCE_CYCLIC_OBJECT_ANIMATION
+	LD	HL,ENDING_ACTOR1_RECORD
+	LD	DE,0007h
+	ADD	HL,DE
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	CALL	SCALE_OBJ32_VELOCITY_BY_SLOT
+	CALL	STEP_OBJECT_XY_BY_VELOCITY
+	LD	A,(IX+OBJ_Y)
+	CP	D4h
+	RET	C
+	XOR	A
+	LD	(IX+OBJ_Y),A
+	RET
+
+; 2-byte sprite frame parameter block (05h, 0Fh) at B197h passed in DE to Bank 01 70FDh by
+; UPDATE_ENDING_OBJ32 (B176h).
+ENDING_OBJ32_SPRITE_PARAMS:
+	DB	05h,0Fh
+
+; Velocity parallax scaler (B199h), Bank 01 StageObjectInitTable handlers (6EE3h -> B1B6h
+; for Obj 32h; 6EE1h -> B1BDh for Obj 31h), Scene 1 actor/script initializer (B1CEh), timed
+; script runner (B201h), 24-bit actor kinematics updater (B21Eh), actor start triggers
+; (B256h/B25Ch), and Terrain 09 update dispatcher (7578h -> B270h, ending with CALL 40AEh at
+; B276h).
+SCALE_OBJ32_VELOCITY_BY_SLOT:
+	PUSH	IX
+	POP	HL
+	ADD	HL,HL
+	LD	A,H
+	AND	03h
+	INC	A
+
+.loc_b1a1:
+	DEC	A
+	RET	Z
+	PUSH	DE
+	SRA	D
+	RR	E
+	SRA	D
+	RR	E
+	SRA	D
+	RR	E
+	POP	HL
+	SBC	HL,DE
+	EX	DE,HL
+	JR	.loc_b1a1
+
+; Bank 01 6EE3h init handler for Obj 32h: set pose (IX+10h)=53h and seed (IX+60h) via B392h
+INIT_ENDING_OBJ32:
+	LD	(IX+OBJ_SPRITE_POSE),53h
+	JP	SEED_ENDING_OBJ_ANIM_PHASE
+
+; Bank 01 6EE1h init handler for Obj 31h: set timer=0, period=8, pose=52h, Y=CCh
+INIT_ENDING_OBJ31:
+	XOR	A
+	LD	(IX+OBJ_ANIM_TIMER),A
+	LD	(IX+OBJ_ACTION_TIMER),08h
+	LD	(IX+OBJ_SPRITE_POSE),52h
+	LD	(IX+OBJ_Y),CCh
+	RET
+
+; Reset script state (CD10h/CD12h), init CE00h/CE80h actor records, spawn Obj 31h & 32h
+INIT_ENDING_SCENE1_ACTORS:
+	XOR	A
+	LD	(ENDING_SCRIPT_INDEX),A
+	LD	H,A
+	LD	L,3Ch
+	LD	(ENDING_SCRIPT_TIMER),HL
+	LD	HL,ENDING_ACTOR0_RECORD
+	CALL	SET_ACTOR_OFFSET0C_TO_10
+	LD	HL,ENDING_ACTOR1_RECORD
+	CALL	SET_ACTOR_OFFSET0C_TO_0010
+	CALL	CLEAR_GAMEPLAY_AND_AUX_OBJ_SLOTS
+	CALL	CLEAR_TERRAIN_OBJECT_TABLE
+	CALL	SPAWN_ENDING_OBJ31
+%if	HINOTORI_ENHANCED
+	JP	SPAWN_ENDING_OBJ32_BATCH
+%else
+	CALL	SPAWN_ENDING_OBJ32_BATCH
+	RET
+%endif
+
+; Write 0010h into offset +0Ch of actor record HL
+SET_ACTOR_OFFSET0C_TO_10:
+	LD	DE,0010h
+	JR	STORE_DE_AT_ACTOR_OFFSET_0C
+
+; Load DE=0010h and store into Ending Demo actor record offset +0Ch
+SET_ACTOR_OFFSET0C_TO_0010:
+	LD	DE,0010h
+
+; Store 16-bit word DE into Ending Demo actor record at (HL + 0Ch)
+STORE_DE_AT_ACTOR_OFFSET_0C:
+	LD	A,0Ch
+	ADD	A,L
+	LD	L,A
+	LD	(HL),E
+	INC	HL
+	LD	(HL),D
+	RET
+
+; Update actors (B21Eh), scroll temple (B004h), and advance timed script (B0E0h) via AFDCh
+STEP_ENDING_SCENE1_SCRIPT:
+	CALL	UPDATE_ENDING_ACTORS_CE00_CE80
+	CALL	SCROLL_ENDING_TEMPLE_WITH_ACTOR1
+	LD	HL,(ENDING_SCRIPT_TIMER)
+	LD	A,(ENDING_SCRIPT_INDEX)
+	LD	DE,ENDING_TIMED_SCENE_SCRIPT
+	CALL	STEP_TIMED_SCRIPT_ENTRY
+	LD	(ENDING_SCRIPT_TIMER),HL
+	RET	NZ
+	LD	HL,ENDING_SCRIPT_INDEX
+	INC	(HL)
+	JP	DISPATCH_TIMED_SCRIPT_ACTION
+
+; Integrate 24-bit position += velocity for CE00h and CE80h; call 68F7h while (IX+0Bh)!=0
+UPDATE_ENDING_ACTORS_CE00_CE80:
+	LD	IX,ENDING_ACTOR0_RECORD
+	CALL	UPDATE_ONE_ENDING_ACTOR_IX
+	LD	IX,ENDING_ACTOR1_RECORD
+
+; Single-actor kinematic step for IX (CE00h or CE80h); clear (IX+0Bh) when velocity > 1000h
+UPDATE_ONE_ENDING_ACTOR_IX:
+	LD	A,(IX+OBJ_ACCEL_ENABLE)
+	OR	A
+	CALL	NZ,APPLY_OBJECT_XY_ACCELERATION
+	LD	H,(IX+OBJ_WORK_1)
+	LD	L,(IX+OBJ_WORK_0)
+	LD	D,(IX+OBJ_VEL_Y_HI)
+	LD	E,(IX+OBJ_VEL_Y_LO)
+	XOR	A
+	ADD	HL,DE
+	ADC	A,(IX+OBJ_WORK_2)
+	LD	(IX+OBJ_WORK_2),A
+	LD	(IX+OBJ_WORK_1),H
+	LD	(IX+OBJ_WORK_0),L
+	LD	HL,1000h
+	OR	A
+	SBC	HL,DE
+	RET	NC
+	LD	(IX+OBJ_ACCEL_ENABLE),00h
+	RET
+
+; Timed script action 0: enable EndingActor0 (CE00h) offsets +6 and +11
+SCRIPT_ACTION_0_START_ACTOR0:
+	LD	IX,ENDING_ACTOR0_RECORD
+	JR	ACTIVATE_ENDING_ACTOR_FLAGS_IX
+
+; Timed script action 1: enable EndingActor1 (CE80h) offsets +6 and +11
+SCRIPT_ACTION_1_START_ACTOR1:
+	LD	IX,ENDING_ACTOR1_RECORD
+
+; Set Ending Demo actor IX active flags at offsets +06h and +0Bh to 01h
+ACTIVATE_ENDING_ACTOR_FLAGS_IX:
+	PUSH	IX
+	POP	HL
+	LD	A,06h
+	ADD	A,L
+	LD	L,A
+	LD	(HL),01h
+	LD	A,05h
+	ADD	A,L
+	LD	L,A
+	LD	(HL),01h
+	RET
+
+; Bank 01 7578h update handler for Terrain 09: CALL 623Ch, dispatch (IX+1) via CALL 40AEh
+UPDATE_ENDING_TERRAIN09:
+	CALL	SYNC_COMPOSITE_TERRAIN_SUBPARTS
+	LD	A,(IX+OBJ_PHASE)
+	CALL	INLINE_WORD_DISPATCH
+
+; 3-entry inline dispatch table (B279h..B27Eh: B27Fh, B29Ch, B2A8h) for Terrain 09 phase
+; (IX+1 = 0..2).
+ENDING_TERRAIN09_PHASE_TABLE:
+	DW	TERRAIN09_PHASE0_FLICKER
+	DW	TERRAIN09_PHASE1_STEADY
+	DW	TERRAIN09_PHASE2_DESCEND_AND_RETIRE
+
+; Phase 0, 1, and 2 update handlers and 4-frame wing/flame animation cycler (B2ECh) for
+; Ending Terrain Object 09.
+TERRAIN09_PHASE0_FLICKER:
+	CALL	STEP_TERRAIN09_ANIM_CYCLE
+	LD	A,(FRAME_COUNTER)
+	RRCA
+	RRCA
+	JR	C,.loc_b293
+	LD	A,01h
+	LD	(GAMEPLAY_OBJ0_COLL_MODE),A
+	LD	(IX+OBJ_PART_ACTIVE_MASK),C0h
+	RET
+
+.loc_b293:
+	XOR	A
+	LD	(GAMEPLAY_OBJ0_COLL_MODE),A
+	LD	(IX+OBJ_PART_ACTIVE_MASK),30h
+	RET
+
+; Clear (D714h), cycle animation (B2ECh), hold (IX+46h)=C0h
+TERRAIN09_PHASE1_STEADY:
+	XOR	A
+	LD	(GAMEPLAY_OBJ0_COLL_MODE),A
+	CALL	STEP_TERRAIN09_ANIM_CYCLE
+	LD	(IX+OBJ_PART_ACTIVE_MASK),C0h
+	RET
+
+; Hide sub-parts per (IX+46h) bits 7/6, scroll (C384h)+=$100, or retire via 75CCh
+TERRAIN09_PHASE2_DESCEND_AND_RETIRE:
+	XOR	A
+	LD	(GAMEPLAY_OBJ0_COLL_MODE),A
+	BIT	07h,(IX+OBJ_PART_ACTIVE_MASK)
+	CALL	NZ,HIDE_TERRAIN09_SUBPART2
+	BIT	06h,(IX+OBJ_PART_ACTIVE_MASK)
+	JR	NZ,HIDE_TERRAIN09_SUBPART3
+	LD	A,(IX+OBJ_PART_ACTIVE_MASK)
+	XOR	C0h
+	JP	Z,SHRINE_STATUE_STATE_HANDLER_02	; asm/banks/bank01.asm
+	CALL	STEP_TERRAIN09_ANIM_CYCLE
+	LD	(IX+OBJ_PART_ACTIVE_MASK),C0h
+	LD	HL,(WORLD_SCROLL_POS)
+	LD	DE,0100h
+	ADD	HL,DE
+	LD	(WORLD_SCROLL_POS),HL
+	LD	H,(IX+OBJ_Y)
+	LD	L,(IX+OBJ_Y_FRAC)
+	OR	A
+	SBC	HL,DE
+	LD	(IX+OBJ_Y),H
+	LD	(IX+OBJ_Y_FRAC),L
+	RET
+
+; SET 7,(IX+30h)
+HIDE_TERRAIN09_SUBPART2:
+	SET	07h,(IX+OBJ_PART2_FLAGS)
+	RET
+
+; SET 6,(IX+38h)
+HIDE_TERRAIN09_SUBPART3:
+	SET	06h,(IX+OBJ_PART3_FLAGS)
+	RET
+
+; Every 8 frames, decrement (IX+48h) mod 4 and load sub-part pattern offsets from B30Dh
+STEP_TERRAIN09_ANIM_CYCLE:
+	DEC	(IX+OBJ_ANIM_TIMER)
+	RET	NZ
+	LD	(IX+OBJ_ANIM_TIMER),08h
+	LD	A,(IX+OBJ_TERRAIN_ANIM_IDX)
+	DEC	A
+	JP	P,.loc_b2fd
+	LD	A,03h
+
+.loc_b2fd:
+	LD	(IX+OBJ_TERRAIN_ANIM_IDX),A
+	LD	HL,ENDING_TERRAIN09_FRAME_OFFSETS
+	CALL	READ_WORD_FROM_HL_TABLE_A
+	LD	(IX+OBJ_PART0_SPRITE_HI),H
+	LD	(IX+OBJ_PART1_SPRITE_HI),L
+	RET
+
+; 4-entry word table (0000h, 4040h, 8080h, 4040h) at B30Dh..B314h giving (IX+2Eh, IX+26h)
+; sprite pattern offsets for Terrain 09's 4-step animation cycle.
+ENDING_TERRAIN09_FRAME_OFFSETS:
+	DW	0000h
+	DW	4040h
+	DW	8080h
+	DW	4040h
+
+; Bank 01 738Eh initialization handler for Ending Terrain Object 09: initializes base slot
+; at (60h, 60h) and attaches four composite sub-object descriptors (B33Fh, B346h, B34Dh,
+; B354h) via 6160h/61A3h/61CDh.
+INIT_ENDING_TERRAIN09:
+	CALL	RETIRE_COMPOSITE_TERRAIN_OBJECT
+	LD	(IX+OBJ_X),60h
+	LD	(IX+OBJ_Y),60h
+	LD	(IX+OBJ_ANIM_TIMER),01h
+	LD	DE,ENDING_TERRAIN09_SUBOBJECT_TEMPLATES
+	CALL	INIT_COMPOSITE_TERRAIN_BASE_SLOT
+	LD	DE,ENDING_TERRAIN09_SUBPART_DESC_1
+	CALL	ATTACH_COMPOSITE_TERRAIN_SUBSLOT
+	LD	DE,ENDING_TERRAIN09_SUBPART_DESC_2
+	CALL	ATTACH_COMPOSITE_TERRAIN_SUBSLOT
+	LD	DE,ENDING_TERRAIN09_SUBPART_DESC_3
+	CALL	ATTACH_COMPOSITE_TERRAIN_SUBSLOT
+	JP	FINALIZE_COMPOSITE_TERRAIN_CHAIN	; asm/banks/bank01.asm
+
+; Four 7-byte composite sub-object descriptor records (B33Fh..B35Ah) passed in DE to Bank 01
+; 6160h and 61A3h by INIT_ENDING_TERRAIN09.
+ENDING_TERRAIN09_SUBOBJECT_TEMPLATES:
+	DB	03h,C0h,00h,20h,40h,90h,00h
+
+; 7-byte Ending Demo Terrain 09 sub-part 1 blit descriptor
+ENDING_TERRAIN09_SUBPART_DESC_1:
+	DB	03h,E0h,00h,20h,40h,B0h,00h
+
+; 7-byte Ending Demo Terrain 09 sub-part 2 blit descriptor
+ENDING_TERRAIN09_SUBPART_DESC_2:
+	DB	0Bh,C0h,00h,40h,40h,00h,FFh
+
+; 7-byte Ending Demo Terrain 09 sub-part 3 blit descriptor
+ENDING_TERRAIN09_SUBPART_DESC_3:
+	DB	0Bh,E0h,00h,20h,40h,00h,FFh
+
+; Clears ending object state (74E7h/7B01h) and spawns 10 Ending Object 33h sparkle instances
+; around the Scene 2 Firebird using coordinates at B376h.
+SPAWN_ENDING_OBJ33_BATCH:
+	CALL	CLEAR_TERRAIN_OBJECT_TABLE
+	CALL	CLEAR_GAMEPLAY_AND_AUX_OBJ_SLOTS
+%if	HINOTORI_ENHANCED
+	LD	BC,0A33h
+%else
+	LD	B,0Ah
+	LD	C,33h
+%endif
+	LD	HL,ENDING_OBJ33_SPAWN_COORDS
+
+.loc_b368:
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	PUSH	BC
+	PUSH	HL
+	CALL	SPAWN_GAMEPLAY_OBJECT_TYPE_A
+	POP	HL
+	POP	BC
+	DJNZ	.loc_b368
+	RET
+
+; Ten 2-byte (Y, X) initial coordinate pairs (B376h..B389h) for Ending Scene 2 Object 33h
+; sparkles.
+ENDING_OBJ33_SPAWN_COORDS:
+	DB	60h,20h
+	DB	40h,28h
+	DB	20h,30h
+	DB	70h,34h
+	DB	10h,50h
+	DB	20h,70h
+	DB	10h,A0h
+	DB	30h,C8h
+	DB	50h,D8h
+	DB	78h,D0h
+
+; Bank 01 init (6EE5h -> B38Ah) and update (68DAh -> B39Fh) handlers for Ending Object 33h,
+; plus shared PRNG phase seeder (B392h).
+INIT_ENDING_OBJ33:
+	LD	(IX+OBJ_ANIM_TIMER),00h
+	LD	(IX+OBJ_SPRITE_POSE),54h
+
+; Seed (IX+60h) = PRNG (987Fh) + (IX+3) + (IX+5)
+SEED_ENDING_OBJ_ANIM_PHASE:
+	CALL	NEXT_PSEUDO_RANDOM_BYTE
+	ADD	A,(IX+OBJ_Y)
+	ADC	A,(IX+OBJ_X)
+	LD	(IX+OBJ_ANIM_CYCLE_CNT),A
+	RET
+
+; Bank 01 68DAh update handler for Obj 33h: LD B,8 / LD DE,B3A7h / JP 70FDh
+UPDATE_ENDING_OBJ33:
+	LD	B,08h
+	LD	DE,ENDING_OBJ33_SPRITE_PARAM
+	JP	ADVANCE_CYCLIC_OBJECT_ANIMATION	; asm/banks/bank01.asm
+
+; Single parameter byte (0Fh) at B3A7h pointed to by DE=B3A7h in UPDATE_ENDING_OBJ33
+; (B3A1h). Previously misclassified as RRCA at the start of PasswordStateDispatcher in
+; generate_baseline_asm.py.
+ENDING_OBJ33_SPRITE_PARAM:
+	DB	0Fh
+
+; True entry point for MainState 0Ah (Password Screen, called via CALL B3A8h from Bank 00
+; 45A7h). Dispatches PasswordSubstate (C137h = 0..5) and draws the initial password frame,
+; prompt text (B3ECh), current state password (B43Eh), and sound 49h.
+PASSWORD_STATE_DISPATCHER_ENTRY:
+	LD	A,(PASSWORD_SUBSTATE)
+	DEC	A
+	JR	Z,WAIT_FOR_PASSWORD_HOME_KEY_ENTRY
+	DEC	A
+	JP	Z,READ_ENTERED_PASSWORD
+	DEC	A
+	JP	Z,VALIDATE_ENTERED_PASSWORD
+	DEC	A
+	JP	Z,PASSWORD_SUBSTATE4_RESTORE_WINDOW
+	JP	P,PASSWORD_SUBSTATE5_DONE_RET
+
+; Substate 0: draw outer/inner window box, print prompt & current password, play SFX 49h
+DRAW_PASSWORD_WINDOW_AND_CURRENT:
+	LD	HL,1720h
+	LD	A,CCh
+	LD	BC,D040h
+	CALL	SAVE_AND_DRAW_POPUP_WINDOW
+	LD	A,FFh
+	LD	HL,1923h
+	LD	BC,CA3Ah
+	CALL	COPY_SCROLLED_VRAM_RECT_TO_PAGE
+	LD	HL,PASSWORD_PROMPT_TEXT
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+	LD	HL,PASSWORD_ENTRY_PUSH_HOME_TEXT
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+	CALL	BUILD_AND_DISPLAY_CURRENT_PASSWORD
+	LD	A,49h
+	CALL	QUEUE_SOUND_COMMAND_IF_UNLOCKED
+
+; Increment PasswordSubstate (C137h) and return
+ADVANCE_PASSWORD_SUBSTATE:
+	LD	HL,PASSWORD_SUBSTATE
+	INC	(HL)
+	RET
+
+; Positioned UI strings for Password screen (B3ECh: X=50h,Y=28h 'PASSWORD' FFh; B3F7h:
+; X=38h,Y=48h 'ENTRY>PUSH HOME KEY ' FFh). Canonical alias: PasswordPromptText.
+PASSWORD_PROMPT_TEXT:
+	DB	"P(PASSWORD",FFh
+
+; Positioned 'ENTRY>PUSH HOME KEY' prompt
+PASSWORD_ENTRY_PUSH_HOME_TEXT:
+	DB	"8H"
+
+; Raw 'ENTRY>...' text body after X,Y bytes
+PASSWORD_ENTRY_PROMPT_BODY:
+	DB	"ENTRY>PUSH",00h,"HOME",00h,"KEY",00h,00h,FFh
+
+; PasswordSubstate 1 handler: polls BIOS_SNSMAT row 8 bit 1 (HOME) to clear prompt and enter
+; editable password mode, or trigger/fire button (C106h bit 4) to play SFX 5Bh and exit via
+; substate 4 (BA36h).
+WAIT_FOR_PASSWORD_HOME_KEY_ENTRY:
+	LD	A,08h
+	CALL	BIOS_SNSMAT
+	BIT	01h,A
+	JR	Z,ENTER_PASSWORD_EDIT_MODE
+	LD	A,(PRESSED_INPUT_BITS)
+	AND	10h
+	RET	Z
+	LD	A,5Bh
+	LD	(SND_FADEOUT_TARGET_ID),A
+	LD	A,04h
+	LD	(PASSWORD_SUBSTATE),A
+	JP	PASSWORD_SUBSTATE4_RESTORE_WINDOW
+
+; Erase 'PUSH HOME KEY', print 'ENTRY>' prompt, and advance to substate 2
+ENTER_PASSWORD_EDIT_MODE:
+	LD	HL,PASSWORD_ENTRY_PUSH_HOME_TEXT
+	CALL	DRAW_SCROLLED_TEXT_AT_X_AND_E
+	LD	DE,3038h
+	LD	C,00h
+	LD	HL,PASSWORD_ENTRY_PROMPT_BODY
+	CALL	DRAW_SCROLLED_CREDIT_LINE_AT_E
+	JR	ADVANCE_PASSWORD_SUBSTATE
+
+; Encodes current gameplay state (route, row, BCD lives, Gao X/Y,
+; inventory/stones/orbs/boxes/maps/compasses, weapon, progression flags, and running 5-bit
+; XOR checksum) into 21 5-bit values at E902h, scrambles them with Bank 00 ROM bytes
+; (5000h+key), converts to display characters, and initializes input buffer E982h.
+BUILD_AND_DISPLAY_CURRENT_PASSWORD:
+	CALL	ENCODE_CURRENT_GAME_STATE
+	LD	HL,PASSWORD_VALUE_BUFFER
+	CALL	TRANSFORM_PASSWORD_VALUES
+	LD	HL,PASSWORD_VALUE_BUFFER
+	CALL	PASSWORD_VALUES_TO_TEXT
+	LD	HL,PASSWORD_DISPLAY_HDR
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+%if	HINOTORI_ENHANCED
+	JP	INITIALIZE_PASSWORD_BUFFER
+%else
+	CALL	INITIALIZE_PASSWORD_BUFFER
+	RET
+%endif
+
+; Canonical InitializePasswordBuffer: init E980h header and fill E982h..E901h+80h with FFh
+INITIALIZE_PASSWORD_BUFFER:
+	LD	HL,4830h
+	LD	(PASSWORD_INPUT_HDR),HL
+	LD	HL,PASSWORD_INPUT_BUFFER
+	LD	(PASSWORD_EDIT_CURSOR_PTR),HL
+	LD	DE,PASSWORD_INPUT_BUF_NEXT
+	LD	BC,007Fh
+	LD	(HL),FFh
+	LDIR
+	RET
+
+; XOR values 1..20 with the original Bank 00 (5000h + key) & 1Fh stream.
+; Enhanced keeps an explicit copy in Bank 05 so code relocation cannot change passwords.
+TRANSFORM_PASSWORD_VALUES:
+	IF	HINOTORI_ENHANCED
+	LD	A,05h
+	CALL	MAP_BANK_A_INTO_PAGE2
+	CALL	ENHANCED_TRANSFORM_PASSWORD_VALUES
+	LD	A,02h
+	JP	MAP_BANK_A_INTO_PAGE2	; asm/banks/bank00.asm
+	ELSE
+	LD	A,(HL)
+	LD	E,A
+	EX	DE,HL
+	LD	H,50h
+	INC	DE
+
+.loc_b474:
+	LD	A,(DE)
+	CP	FFh
+	RET	Z
+	XOR	(HL)
+	AND	1Fh
+	LD	(DE),A
+	INC	DE
+	INC	HL
+	JR	.loc_b474
+
+	ENDIF
+
+; Canonical AppendPasswordValue: clamp A to 1Fh, store at (BC++), update running XOR in D
+APPEND_PASSWORD_VALUE:
+	CP	1Fh
+	JR	C,.loc_b486
+	LD	A,1Fh
+
+.loc_b486:
+	LD	(BC),A
+	INC	BC
+	XOR	D
+	LD	D,A
+	RET
+
+; Canonical EncodeCurrentGameState: pack all gameplay fields into 21 5-bit values at E902h
+ENCODE_CURRENT_GAME_STATE:
+	CALL	PREPARE_GAO_RESPAWN_STATE_FROM_CHECKPOINT
+	LD	D,00h
+	LD	BC,3830h
+	LD	(PASSWORD_DISPLAY_HDR),BC
+	LD	BC,E902h
+	LD	A,R
+	RRCA
+	RRCA
+	AND	1Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(CURRENT_ROUTE_ID)
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(ROUTE_INDEX)
+	CP	03h
+	LD	A,(INITIAL_ROUTE_ROW)
+	JR	NZ,.loc_b4b5
+	LD	A,1Fh
+
+.loc_b4b5:
+	LD	H,A
+	AND	0Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,H
+	RRCA
+	RRCA
+	RRCA
+	RRCA
+	AND	0Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(PLAYER_LIVES_BCD)
+	LD	L,A
+	AND	0Fh
+	LD	H,A
+	XOR	L
+	RRCA
+	RRCA
+	RRCA
+	RRCA
+	ADD	A,A
+	LD	L,A
+	ADD	A,A
+	ADD	A,A
+	ADD	A,L
+	ADD	A,H
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(RESPAWN_GAO_X)
+	RRCA
+	RRCA
+	RRCA
+	AND	1Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(RESPAWN_GAO_Y)
+	RRCA
+	RRCA
+	RRCA
+	AND	1Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(INV_STAGE6_STONE_GRP1)
+	AND	01h
+	RLCA
+	LD	L,A
+	LD	A,(INV_STAGE6_STONE_GRP2)
+	AND	01h
+	OR	L
+	RLCA
+	RLCA
+	LD	L,A
+	LD	A,(INV_STAGE_MAP_MASK)
+	AND	20h
+	RRCA
+	OR	L
+	LD	L,A
+	LD	A,(INVENTORY_SLOTS_BASE)
+	AND	03h
+	OR	L
+	CALL	APPEND_PASSWORD_VALUE
+	LD	HL,INV_SQUARE_STONES_BASE
+	CALL	COLLECT_FIVE_BITS
+	CALL	APPEND_PASSWORD_VALUE
+	LD	HL,INV_SQUARE_STONES_GRP2
+	CALL	COLLECT_FIVE_BITS
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(INV_INFINITE_COMPASS_SLOT)
+	OR	A
+	LD	L,00h
+	JR	Z,.loc_b52d
+	LD	L,10h
+
+.loc_b52d:
+	LD	A,(INV_COMPASS_SECTOR_MASK)
+	AND	20h
+	OR	L
+	RRCA
+	LD	L,A
+	LD	A,(INV_RAPID_FIRE_SLOT)
+	AND	07h
+	OR	L
+	CALL	APPEND_PASSWORD_VALUE
+	LD	HL,INV_SQUARE_STONES_GRP3
+	CALL	COLLECT_FIVE_BITS
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(FEATHER_ORB_COUNT)
+	RRCA
+	RRCA
+	AND	3Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(INV_STORAGE_BOX_SLOT)
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(INV_STAGE_MAP_SLOT)
+	AND	1Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(INV_COMPASS_SECTOR_MASK)
+	AND	1Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(PASSWORD_VALUE_5)
+	LD	H,A
+	LD	A,(PASSWORD_VALUE_6)
+	ADD	A,H
+	AND	1Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	HL,INV_SUPERBALL_SLOTS_BASE
+	CALL	COLLECT_FIVE_BITS
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(GAO_WEAPON_FORM)
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,(COLLECTED_PIECE_FLAGS)
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,D
+	AND	1Fh
+	CALL	APPEND_PASSWORD_VALUE
+	LD	A,FFh
+	LD	(BC),A
+	RET
+
+; Ambiguous character remapping ('0'<->'Z', 'O'<->'Y'), lowercase-to-uppercase ASCII
+; converter, and 5-slot 1-bit gather/scatter helpers (B5B4h CollectFiveBits / B5D9h
+; DistributeFiveBits, stepping HL by 4 bytes per inventory slot).
+UNESCAPE_PASSWORD_CHARACTER:
+	CP	5Ah
+	JR	NZ,.loc_b599
+	LD	A,30h
+
+.loc_b599:
+	CP	59h
+	RET	NZ
+	LD	A,4Fh
+	RET
+
+; Canonical EscapeAmbiguousPasswordCharacter ('0'->'Z', 'O'->'Y')
+ESCAPE_AMBIGUOUS_PASSWORD_CHARACTER:
+	CP	30h
+	JR	NZ,.loc_b5a5
+	LD	A,5Ah
+
+.loc_b5a5:
+	CP	4Fh
+	RET	NZ
+	LD	A,59h
+	RET
+
+; Canonical UppercasePasswordCharacter ('a'..'z' -> 'A'..'Z')
+UPPERCASE_PASSWORD_CHARACTER:
+	CP	61h
+	RET	C
+	CP	7Bh
+	RET	NC
+	SUB	20h
+	RET
+
+; Canonical CollectFiveBits: pack bit 0 of 5 consecutive 4-byte inventory slots into A
+COLLECT_FIVE_BITS:
+	PUSH	HL
+	EXX
+	POP	HL
+	LD	E,00h
+	LD	BC,0004h
+	LD	A,(HL)
+	RRA
+	RL	E
+	ADD	HL,BC
+	LD	A,(HL)
+	RRA
+	RL	E
+	ADD	HL,BC
+	LD	A,(HL)
+	RRA
+	RL	E
+	ADD	HL,BC
+	LD	A,(HL)
+	RRA
+	RL	E
+	ADD	HL,BC
+	LD	A,(HL)
+	RRA
+	RL	E
+	LD	A,E
+	AND	1Fh
+	EXX
+	RET
+
+; Canonical DistributeFiveBits: unpack 5 bits from A into 5 consecutive 4-byte inventory
+; slots
+DISTRIBUTE_FIVE_BITS:
+	PUSH	HL
+	EXX
+	POP	HL
+	LD	BC,0004h
+	RLCA
+	RLCA
+	RLCA
+	RL	A
+	RL	(HL)
+	ADD	HL,BC
+	RL	A
+	RL	(HL)
+	ADD	HL,BC
+	RL	A
+	RL	(HL)
+	ADD	HL,BC
+	RL	A
+	RL	(HL)
+	ADD	HL,BC
+	RL	A
+	RL	(HL)
+	AND	1Fh
+	EXX
+	RET
+
+; Unpacks, range-checks, and applies an entered 21-character level password (B5FEh), plus
+; bit-counting, base-32 alphabet conversion, keyboard entry editor (B78Ch), XOR checksum
+; verifier (B7EEh), and top-level password validator (B7FAh..B83Fh, including final JP B3E7h
+; at B83Dh..B83Fh missed by baseline).
+DECODE_PASSWORD_GAME_STATE:
+	LD	BC,E983h
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_BOXES),A
+	LD	A,(BC)
+	INC	BC
+	LD	H,A
+	LD	A,(BC)
+	INC	BC
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	OR	H
+	LD	L,A
+	LD	H,00h
+	LD	(DECODED_PWD_MAPS_COMP),HL
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_CROSS_SUM),A
+	LD	A,(BC)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	INC	BC
+	LD	(DECODED_PWD_WEAPON),A
+	LD	A,(BC)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	INC	BC
+	LD	(DECODED_PWD_BOSS_FLAGS),A
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_RANDOM_KEY),A
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_ROUTE_ID),A
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_ROW_LO),A
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_ROW_HI),A
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_LIVES),A
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_GAO_Y),A
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_GAO_X),A
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_EQUIP_A),A
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_EQUIP_B),A
+	LD	A,(PASSWORD_INPUT_CHAR_5)
+	LD	H,A
+	LD	A,(PASSWORD_INPUT_CHAR_6)
+	ADD	A,H
+	AND	1Fh
+	LD	H,A
+	LD	A,(BC)
+	INC	BC
+	SUB	H
+	RET	NZ
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	LD	HL,INVENTORY_SLOTS_BASE
+	LD	BC,00AFh
+	CALL	ZERO_RAM_BLOCK_HL_BC
+	POP	BC
+	POP	DE
+	POP	HL
+	LD	A,(BC)
+	INC	BC
+	LD	(DECODED_PWD_FEATHERS_Q4),A
+	LD	A,(BC)
+	INC	BC
+	LD	(GAO_WEAPON_FORM),A
+	LD	A,(BC)
+	LD	(COLLECTED_PIECE_FLAGS),A
+	LD	A,(DECODED_PWD_BOXES)
+	LD	(CURRENT_ROUTE_ID),A
+	LD	HL,(DECODED_PWD_MAPS_COMP)
+	LD	(INITIAL_ROUTE_ROW),HL
+	LD	A,(DECODED_PWD_CROSS_SUM)
+	LD	L,A
+	LD	H,00h
+	CALL	CONVERT_HL_BINARY_TO_BCD
+	LD	A,E
+	LD	(PLAYER_LIVES_BCD),A
+	LD	A,(DECODED_PWD_WEAPON)
+	LD	(RESPAWN_GAO_X),A
+	LD	A,(DECODED_PWD_BOSS_FLAGS)
+	LD	(RESPAWN_GAO_Y),A
+	LD	A,(DECODED_PWD_RANDOM_KEY)
+	AND	03h
+	LD	(INVENTORY_SLOTS_BASE),A
+	LD	A,(DECODED_PWD_ROW_HI)
+	AND	07h
+	LD	(INV_RAPID_FIRE_SLOT),A
+	LD	A,(DECODED_PWD_GAO_Y)
+	ADD	A,A
+	ADD	A,A
+	LD	(FEATHER_ORB_COUNT),A
+	LD	A,(DECODED_PWD_GAO_X)
+	LD	(INV_STORAGE_BOX_SLOT),A
+	LD	A,(DECODED_PWD_EQUIP_A)
+	LD	(INV_STAGE_MAP_SLOT),A
+	LD	A,(DECODED_PWD_ROW_HI)
+	AND	10h
+	RLCA
+	LD	L,A
+	LD	A,(DECODED_PWD_EQUIP_B)
+	OR	L
+	LD	(INV_COMPASS_SECTOR_MASK),A
+	CALL	COUNT_SET_BITS
+	LD	(INV_COMPASS_COUNT_SLOT),A
+	LD	A,(DECODED_PWD_ROW_HI)
+	AND	08h
+	JR	Z,.loc_b6ed
+	LD	A,01h
+	LD	(INV_INFINITE_COMPASS_SLOT),A
+
+.loc_b6ed:
+	LD	A,(DECODED_PWD_RANDOM_KEY)
+	AND	04h
+	RRCA
+	RRCA
+	LD	(INV_STAGE6_STONE_GRP2),A
+	LD	A,(DECODED_PWD_ROUTE_ID)
+	LD	HL,INV_SQUARE_STONES_BASE
+	CALL	DISTRIBUTE_FIVE_BITS
+	LD	A,(DECODED_PWD_ROW_LO)
+	LD	HL,INV_SQUARE_STONES_GRP2
+	CALL	DISTRIBUTE_FIVE_BITS
+	LD	A,(DECODED_PWD_RANDOM_KEY)
+	AND	08h
+	RRCA
+	RRCA
+	RRCA
+	LD	(INV_STAGE6_STONE_GRP1),A
+	LD	A,(DECODED_PWD_LIVES)
+	LD	HL,INV_SQUARE_STONES_GRP3
+	CALL	DISTRIBUTE_FIVE_BITS
+	LD	A,(DECODED_PWD_FEATHERS_Q4)
+	LD	HL,INV_SUPERBALL_SLOTS_BASE
+	CALL	DISTRIBUTE_FIVE_BITS
+	LD	HL,PASSWORD_RESET_START
+	LD	BC,0002h
+	CALL	ZERO_RAM_BLOCK_HL_BC
+	LD	A,80h
+	LD	(LEVEL_NUMBER),A
+	LD	(MAP_RELOAD_AND_PWD_FLAG),A
+	CALL	REFRESH_GAO_RAPID_FIRE_PARAMETERS
+	CALL	UPLOAD_EQUIPPED_WEAPON_SPRITE_PATTERN
+	CALL	RESET_TRANSIENT_GAO_AND_BGM_LOCKS
+	LD	A,05h
+	LD	(PENDING_STATE_AFTER_PWD),A
+	LD	A,58h
+	CALL	QUEUE_SOUND_COMMAND_IF_UNLOCKED
+	JP	DISABLE_VDP_DISPLAY_AND_SPRITES	; asm/banks/bank00.asm
+
+; Canonical CountSetBits
+COUNT_SET_BITS:
+	LD	BC,0800h
+
+.loc_b750:
+	RRA
+	JR	NC,.loc_b754
+	INC	C
+
+.loc_b754:
+	DJNZ	.loc_b750
+	LD	A,C
+	RET
+
+; Canonical PasswordValuesToText
+PASSWORD_VALUES_TO_TEXT:
+	LD	A,(HL)
+	CP	FFh
+	RET	Z
+	CALL	PASSWORD_VALUE_TO_CHARACTER
+	CALL	ESCAPE_AMBIGUOUS_PASSWORD_CHARACTER
+	LD	(HL),A
+	INC	HL
+	JR	PASSWORD_VALUES_TO_TEXT
+
+; Canonical PasswordValueToCharacter
+PASSWORD_VALUE_TO_CHARACTER:
+	CP	0Ah
+	LD	C,30h
+	JR	C,.loc_b76e
+	LD	C,37h
+
+.loc_b76e:
+	ADD	A,C
+	RET
+
+; Canonical PasswordTextToValues
+PASSWORD_TEXT_TO_VALUES:
+	LD	A,(HL)
+	CP	FFh
+	RET	Z
+	CALL	UNESCAPE_PASSWORD_CHARACTER
+	CALL	PASSWORD_CHARACTER_TO_VALUE
+	LD	(HL),A
+	INC	HL
+	JR	PASSWORD_TEXT_TO_VALUES
+
+; Canonical PasswordCharacterToValue
+PASSWORD_CHARACTER_TO_VALUE:
+	SUB	30h
+	RET	C
+	CP	0Ah
+	CCF
+	RET	NC
+	SUB	07h
+	RET	C
+	CP	23h
+	CCF
+	RET
+
+; Canonical ReadEnteredPassword (PasswordSubstate 2 keyboard editor)
+READ_ENTERED_PASSWORD:
+	CALL	BIOS_KILBUF
+
+.loc_b78f:
+	LD	HL,PASSWORD_INPUT_HDR
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+
+.loc_b795:
+	CALL	BIOS_KILBUF
+	XOR	A
+	LD	(BIOS_CAPST),A
+	CALL	BIOS_CHGET
+	CALL	UPPERCASE_PASSWORD_CHARACTER
+	CP	08h
+	JR	Z,.loc_b7dc
+	CP	0Dh
+	JP	Z,ADVANCE_PASSWORD_SUBSTATE
+	CP	30h
+	JR	C,.loc_b795
+	CP	5Bh
+	JR	NC,.loc_b795
+	LD	C,A
+	CP	41h
+	JR	NC,.loc_b7bc
+	CP	3Ah
+	JR	NC,.loc_b795
+
+.loc_b7bc:
+	LD	DE,(PASSWORD_EDIT_CURSOR_PTR)
+	LD	A,E
+	CP	97h
+	JR	NC,.loc_b78f
+	LD	A,C
+	LD	(DE),A
+	INC	DE
+	LD	(PASSWORD_EDIT_CURSOR_PTR),DE
+	LD	A,01h
+	CALL	QUEUE_SOUND_COMMAND_IF_UNLOCKED
+	JR	.loc_b78f
+	IF	HINOTORI_ENHANCED = 00h
+	LD	DE,(PASSWORD_EDIT_CURSOR_PTR)
+	LD	A,E
+	CP	95h
+	JR	NC,.loc_b78f
+	ENDIF
+
+.loc_b7dc:
+	LD	DE,(PASSWORD_EDIT_CURSOR_PTR)
+	LD	A,E
+	CP	82h
+	JR	Z,.loc_b78f
+	DEC	DE
+	XOR	A
+	LD	(DE),A
+	LD	(PASSWORD_EDIT_CURSOR_PTR),DE
+	JR	.loc_b78f
+
+; Canonical XorPasswordValues
+XOR_PASSWORD_VALUES:
+	XOR	A
+	LD	HL,PASSWORD_INPUT_BUFFER
+
+.loc_b7f2:
+	LD	D,(HL)
+	INC	HL
+	INC	D
+	RET	Z
+	DEC	D
+	XOR	D
+	JR	.loc_b7f2
+
+; Canonical ValidateEnteredPassword (PasswordSubstate 3): check secrets first, then level
+; codec; ends with JP B3E7h at B83Dh
+VALIDATE_ENTERED_PASSWORD:
+	CALL	CHECK_SECRET_PASSWORDS
+	JR	NZ,.loc_b822
+	LD	HL,PASSWORD_INPUT_BUFFER
+	CALL	PASSWORD_TEXT_TO_VALUES
+	LD	HL,PASSWORD_INPUT_BUFFER
+	CALL	TRANSFORM_PASSWORD_VALUES
+	CALL	XOR_PASSWORD_VALUES
+	OR	A
+	JR	NZ,SHOW_PASSWORD_WRONG
+	CALL	DECODE_PASSWORD_GAME_STATE
+	LD	A,(MAP_RELOAD_AND_PWD_FLAG)
+	CP	80h
+	JR	NZ,SHOW_PASSWORD_WRONG
+	LD	A,(PASSWORD_VALUE_BUFFER)
+	CP	FFh
+	JR	Z,SHOW_PASSWORD_WRONG
+
+.loc_b822:
+	CALL	SHOW_PASSWORD_CORRECT
+	JR	FINISH_PASSWORD_VALIDATION_STEP
+
+; Display 'WRONG' (B84Ah), set timer=1Eh, request SFX 5Bh, and JP B3E7h
+SHOW_PASSWORD_WRONG:
+	LD	HL,PASSWORD_PROMPT_TEXT
+	CALL	DRAW_SCROLLED_TEXT_AT_X_AND_E
+	LD	HL,PASSWORD_WRONG_TEXT
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+
+; Start 30-frame result timer, queue BGM fade-out target 5Bh, and advance Password substate
+FINISH_PASSWORD_VALIDATION_STEP:
+	LD	A,1Eh
+	LD	(MAIN_STATE_TIMER),A
+	LD	A,5Bh
+	LD	(SND_FADEOUT_TARGET_ID),A
+	JP	ADVANCE_PASSWORD_SUBSTATE
+
+; Positioned validation result strings: PasswordCorrectText at B840h (X=50h,Y=28h 'CORRECT'
+; FFh) and PasswordWrongText at B84Ah (X=50h,Y=28h 'WRONG' FFh).
+PASSWORD_RESULT_MESSAGES:
+	DB	"P(CORRECT",FFh
+
+; Positioned 'WRONG' validation message
+PASSWORD_WRONG_TEXT:
+	DB	"P(WRONG",FFh
+
+; Displays 'CORRECT' message (B852h) and scans the 17-entry SecretPasswordRecordTable
+; (B8A0h) comparing E982h against each NUL-terminated cheat/secret string and invoking its
+; inline action handler immediately after the NUL byte.
+SHOW_PASSWORD_CORRECT:
+	LD	HL,PASSWORD_PROMPT_TEXT
+	CALL	DRAW_SCROLLED_TEXT_AT_X_AND_E
+	LD	HL,PASSWORD_RESULT_MESSAGES
+	JP	DRAW_SCROLLED_POSITIONED_TEXT	; asm/banks/bank00.asm
+
+; Canonical CheckSecretPasswords: scan 17 records in B8A0h
+CHECK_SECRET_PASSWORDS:
+	XOR	A
+	LD	(SECRET_PWD_APPLIED_FLAG),A
+	LD	HL,0000h
+	LD	(PENDING_STATE_AFTER_PWD),HL
+	LD	B,11h
+
+.loc_b86a:
+	PUSH	BC
+	CALL	CHECK_ONE_SECRET_PASSWORD
+	POP	BC
+	DJNZ	.loc_b86a
+	IF	HINOTORI_ENHANCED
+	LD	A,(SECRET_PWD_APPLIED_FLAG)
+	OR	A
+	RET	NZ
+	LD	A,05h
+	CALL	MAP_BANK_A_INTO_PAGE2
+	CALL	CHECK_ENGLISH_SECRET_PASSWORDS
+	LD	A,02h
+	CALL	MAP_BANK_A_INTO_PAGE2
+	LD	A,(SECRET_PWD_APPLIED_FLAG)
+	OR	A
+	CALL	NZ,.call_en_secret_handler
+	ENDIF
+	LD	A,(SECRET_PWD_APPLIED_FLAG)
+	OR	A
+	RET
+	IF	HINOTORI_ENHANCED
+
+.call_en_secret_handler:
+	JP	(HL)
+	ENDIF
+
+; Canonical CheckOneSecretPassword: compare NUL-terminated string, call following code on
+; match
+CHECK_ONE_SECRET_PASSWORD:
+	LD	DE,SECRET_PASSWORD_RECORD_TABLE
+	LD	A,B
+	DEC	A
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	LD	HL,PASSWORD_INPUT_BUFFER
+
+.loc_b881:
+	LD	A,(DE)
+	INC	DE
+	OR	A
+	JR	NZ,.loc_b89b
+	INC	HL
+	LD	A,(HL)
+	INC	A
+	RET	NZ
+	LD	HL,PASSWORD_DECODE_WORK_BUF
+	LD	A,B
+	CALL	ADD_A_TO_HL
+	LD	A,(HL)
+	OR	A
+	RET	NZ
+	INC	A
+	LD	(SECRET_PWD_APPLIED_FLAG),A
+	LD	(HL),A
+	EX	DE,HL
+	JP	(HL)
+
+.loc_b89b:
+	CP	(HL)
+	INC	HL
+	RET	NZ
+	JR	.loc_b881
+
+; 17-entry 16-bit pointer table (B8A0h..B8C1h) pointing to each NUL-terminated secret
+; password string + inline action routine in B8C2h..BA35h. Canonical alias:
+; SecretPasswordRecordTable.
+SECRET_PASSWORD_RECORD_TABLE:
+	DW	SECRET_TEXT_KINOOOIHITODANE
+	DW	SECRET_TEXT_HANEYOKAGAYAKE
+	DW	SECRET_TEXT_ULTRABOX
+	DW	SECRET_TEXT_TURBO
+	DW	SECRET_TEXT_METALSLAVE
+	DW	SECRET_TEXT_HOIHOIHOINOHOI
+	DW	SECRET_TEXT_FULLITEMDAYOON
+	DW	SECRET_TEXT_GAOOOOOOOOOOH
+	DW	SECRET_TEXT_ENDDEMOGAMITAINA
+	DW	SECRET_TEXT_HIDDEN_FIVE_LOWERCASE_A
+	DW	SECRET_TEXT_KOKOWADOKO
+	DW	SECRET_TEXT_NANDANANDANANDA
+	DW	SECRET_TEXT_AUTOSHOT
+	DW	SECRET_TEXT_ILOVEHINOTORI
+	DW	SECRET_TEXT_DOKODEMOMAP
+	DW	SECRET_TEXT_HAYAME
+	DW	SECRET_TEXT_SUPERBALL
+
+; NUL-terminated secret password string 'SUPERBALL' (Canonical: SecretSuperBall).
+SECRET_TEXT_SUPERBALL:
+	DB	"SUPERBALL",00h
+
+; Grant all 5 sacred orbs/SuperBalls (C8DCh..C8EFh = 1).
+APPLY_SECRET_SUPERBALL_ENTRY:
+	LD	HL,INV_SUPERBALL_SLOTS_BASE
+	LD	BC,0013h
+	JR	FILL_SECRET_STATE_BYTES
+
+; NUL-terminated secret password string 'KINOOOIHITODANE' (Canonical:
+; SecretAllSquareStones).
+SECRET_TEXT_KINOOOIHITODANE:
+	DB	"KINOOOIHITODANE",00h
+
+; Grant all 18 square stones (C88Ch..C8D3h = 1) and provide shared LDIR byte-fill helper at
+; B8EAh/B8ECh.
+APPLY_SECRET_ALL_SQUARE_STONES_ENTRY:
+	LD	HL,INV_SQUARE_STONES_BASE
+	LD	BC,0047h
+
+; Canonical FillSecretStateBytes: fill BC+1 bytes at HL with A=1
+FILL_SECRET_STATE_BYTES:
+	LD	A,01h
+
+; Shared LDIR fill entry with caller-supplied A value (used by hidden 'aaaaa' secret)
+FILL_SECRET_STATE_WITH_A:
+	LD	D,H
+	LD	E,L
+	INC	DE
+	LD	(HL),A
+	LDIR
+	RET
+
+; NUL-terminated secret password string 'HANEYOKAGAYAKE' (Canonical:
+; SecretFeathersWorthTen).
+SECRET_TEXT_HANEYOKAGAYAKE:
+	DB	"HANEYOKAGAYAKE",00h
+
+; Set (C4E3h)=1 so each collected feather counts as 10.
+APPLY_SECRET_FEATHERS_WORTH_TEN_ENTRY:
+	LD	A,01h
+	LD	(CHEAT_FEATHERS_X10),A
+	RET
+
+; NUL-terminated secret password string 'ULTRABOX' (Canonical: SecretNineStorageBoxes).
+SECRET_TEXT_ULTRABOX:
+	DB	"ULTRABOX",00h
+
+; Set storage box count (C870h)=9.
+APPLY_SECRET_NINE_STORAGE_BOXES_ENTRY:
+	LD	A,09h
+	LD	(INV_STORAGE_BOX_SLOT),A
+	RET
+
+; NUL-terminated secret password string 'TURBO' (Canonical: SecretMaxSpeed).
+SECRET_TEXT_TURBO:
+	DB	"TURBO",00h
+
+; Set speed/boot level (C850h)=3.
+APPLY_SECRET_MAX_SPEED_ENTRY:
+	LD	A,03h
+	LD	(INVENTORY_SLOTS_BASE),A
+	RET
+
+; NUL-terminated secret password string 'METALSLAVE' (Canonical: SecretTwoHundredFeathers).
+SECRET_TEXT_METALSLAVE:
+	DB	"METALSLAVE",00h
+
+; Set feather/orb count (C845h)=C8h (200).
+APPLY_SECRET_TWO_HUNDRED_FEATHERS_ENTRY:
+	LD	A,C8h
+	LD	(FEATHER_ORB_COUNT),A
+	RET
+
+; NUL-terminated secret password string 'HOIHOIHOINOHOI' (Canonical:
+; SecretInfiniteCompasses).
+SECRET_TEXT_HOIHOIHOINOHOI:
+	DB	"HOIHOIHOINOHOI",00h
+
+; Set compass charges (C884h)=9.
+APPLY_SECRET_INFINITE_COMPASSES_ENTRY:
+	LD	A,09h
+	LD	(INV_INFINITE_COMPASS_SLOT),A
+	RET
+
+; NUL-terminated secret password string 'FULLITEMDAYOON' (Canonical: SecretOneOfEachItem).
+SECRET_TEXT_FULLITEMDAYOON:
+	DB	"FULLITEMDAYOON",00h
+
+; Fill standard item slots (C850h..C88Bh) with 1 via JR B8EAh.
+APPLY_SECRET_ONE_OF_EACH_ITEM_ENTRY:
+	LD	HL,INVENTORY_SLOTS_BASE
+	LD	BC,003Bh
+	JR	FILL_SECRET_STATE_BYTES
+
+; NUL-terminated secret password string 'GAOOOOOOOOOOH' (Canonical: SecretTenExtraLives).
+SECRET_TEXT_GAOOOOOOOOOOH:
+	DB	"GAOOOOOOOOOOH",00h
+
+; Add +10 BCD (10h + DAA, capped at 99) to PlayerLivesBcd (C160h).
+APPLY_SECRET_TEN_EXTRA_LIVES_ENTRY:
+	LD	A,(PLAYER_LIVES_BCD)
+	ADD	A,10h
+	DAA
+	RET	C
+	LD	(PLAYER_LIVES_BCD),A
+	RET
+
+; NUL-terminated secret password string 'ENDDEMOGAMITAINA' (Canonical: SecretWatchEnding).
+SECRET_TEXT_ENDDEMOGAMITAINA:
+	DB	"ENDDEMOGAMITAINA",00h
+
+; Set PendingMainStateAfterPassword (C4DAh)=000Ch (Ending Demo), mute sound channels, and
+; raise DynamicSpriteSlotCount (C4A8h)=20 (14h).
+APPLY_SECRET_WATCH_ENDING_ENTRY:
+	LD	HL,000Ch
+	LD	(PENDING_STATE_AFTER_PWD),HL
+	XOR	A
+	LD	(VERTICAL_SCROLL_DELTA),A
+	LD	(SND_BGM_SAVED_LOCK),A
+	LD	(SND_SAVED_CH0_ID),A
+	LD	(SND_SAVED_CH1_ID),A
+	LD	(SND_SAVED_CH2_ID),A
+	LD	A,14h
+	LD	(DYNAMIC_SPRITE_SLOT_CNT),A
+	RET
+
+; NUL-terminated hidden developer password 'aaaaa' (5 lowercase 'a' bytes, reachable only
+; via CAPS-off input after seeing HOME hint in ending).
+SECRET_TEXT_HIDDEN_FIVE_LOWERCASE_A:
+	DB	"aaaaa",00h
+
+; Enable DebugCheatMasterFlag (C4D1h)=1 and fill all 168 inventory/stone/orb bytes
+; (C850h..C8F7h) with 3.
+APPLY_SECRET_HIDDEN_FIVE_LOWERCASE_A_ENTRY:
+	LD	A,01h
+	LD	(DEBUG_CHEAT_MASTER_FLAG),A
+	LD	HL,INVENTORY_SLOTS_BASE
+	LD	BC,00A7h
+	LD	A,03h
+	JP	FILL_SECRET_STATE_WITH_A
+
+; NUL-terminated secret password string 'KOKOWADOKO' (Canonical: SecretViewStageMap).
+SECRET_TEXT_KOKOWADOKO:
+	DB	"KOKOWADOKO",00h
+
+; Set stage map count (C874h)=6 and all-6-levels mask (C875h)=3Fh.
+APPLY_SECRET_VIEW_STAGE_MAP_ENTRY:
+	LD	A,06h
+	LD	(INV_STAGE_MAP_SLOT),A
+	LD	A,3Fh
+	LD	(INV_STAGE_MAP_MASK),A
+	RET
+
+; NUL-terminated secret password string 'NANDANANDANANDA' (Canonical: SecretInfiniteLives).
+SECRET_TEXT_NANDANANDANANDA:
+	DB	"NANDANANDANANDA",00h
+
+; Set InfiniteLivesFlag (C4E0h)=1.
+APPLY_SECRET_INFINITE_LIVES_ENTRY:
+	LD	A,01h
+	LD	(CHEAT_INFINITE_LIVES),A
+	RET
+
+; NUL-terminated secret password string 'AUTOSHOT' (Canonical: SecretAutomaticFire).
+SECRET_TEXT_AUTOSHOT:
+	DB	"AUTOSHOT",00h
+
+; Set rapid-fire slot (C85Ch)=3, AutoFireFlag (C4E1h)=1, and refresh shot parameters via
+; Bank 01 7FA9h.
+APPLY_SECRET_AUTOMATIC_FIRE_ENTRY:
+	LD	A,03h
+	LD	(INV_RAPID_FIRE_SLOT),A
+	LD	(CHEAT_AUTO_FIRE),A
+	JP	REFRESH_GAO_RAPID_FIRE_PARAMETERS	; asm/banks/bank01.asm
+
+; NUL-terminated secret password string 'ILOVEHINOTORI' (Canonical: SecretInvincibility).
+SECRET_TEXT_ILOVEHINOTORI:
+	DB	"ILOVEHINOTORI",00h
+
+; Set InvincibilityFlag (C4E2h)=1.
+APPLY_SECRET_INVINCIBILITY_ENTRY:
+	LD	A,01h
+	LD	(CHEAT_INVINCIBILITY),A
+	RET
+
+; NUL-terminated secret password string 'DOKODEMOMAP' (Canonical: SecretAllWorldMaps).
+SECRET_TEXT_DOKODEMOMAP:
+	DB	"DOKODEMOMAP",00h
+
+; Set compass/world-map count (C878h)=6 and all-6-sectors mask (C879h)=3Fh.
+APPLY_SECRET_ALL_WORLD_MAPS_ENTRY:
+	LD	A,06h
+	LD	(INV_COMPASS_COUNT_SLOT),A
+	LD	A,3Fh
+	LD	(INV_COMPASS_SECTOR_MASK),A
+	RET
+
+; NUL-terminated secret password string 'HAYAME' (Canonical: SecretThreeLadybugs).
+SECRET_TEXT_HAYAME:
+	DB	"HAYAME",00h
+
+; Set rapid-fire/ladybug level (C85Ch)=3 and refresh shot parameters via Bank 01 7FA9h.
+APPLY_SECRET_THREE_LADYBUGS_ENTRY:
+	LD	A,03h
+	LD	(INV_RAPID_FIRE_SLOT),A
+	JP	REFRESH_GAO_RAPID_FIRE_PARAMETERS	; asm/banks/bank01.asm
+
+; Password screen exit substates 4 (BA36h: wait for (C012h)==0, restore background window
+; via 4972h/4CF8h, advance to substate 5) and 5 (BA4Ah: RET), followed by MainState 11h
+; entry point (BA4Bh, called from Bank 00 4662h: F3 'ITEM INFORMATION' inventory screen
+; dispatcher and substate 0 window/header draw).
+PASSWORD_SUBSTATE4_RESTORE_WINDOW:
+	IF	HINOTORI_ENHANCED
+; The success jingle can end before its deferred fade target. Wait for that target
+; too, or it can stop the new stage BGM after password exit has already started it.
+	LD	A,(SND_FADEOUT_TARGET_ID)
+	OR	A
+	RET	NZ
+	ENDIF
+	LD	A,(SND_CH0_SOUND_ID)
+	OR	A
+	RET	NZ
+	LD	HL,1720h
+	LD	BC,D040h
+	CALL	RESTORE_POPUP_VRAM_AND_RELOAD_FONTS
+	CALL	ENABLE_VDP_SPRITES
+	JP	ADVANCE_PASSWORD_SUBSTATE
+
+; Terminal RET for PasswordSubstate 5
+PASSWORD_SUBSTATE5_DONE_RET:
+	RET
+
+; MainState 11h (F3 ITEM INFORMATION) entry: dispatch MainSubstate B (0..3) and draw 208x88
+; frame + header (BA87h) + SFX 34h
+ITEM_INFO_SCREEN_DISPATCHER:
+	LD	A,B
+	DEC	A
+	JP	Z,ITEM_INFO_SUBSTATE1_RENDER_ITEMS
+	DEC	A
+	JP	Z,ITEM_INFO_SUBSTATE2_WAIT_BUTTON
+	JP	P,ITEM_INFO_SUBSTATE3_CLOSE_SCREEN
+	LD	HL,1720h
+	IF	HINOTORI_ENHANCED
+	LD	DE,VRAM_PAGE3_LARGE_BOX_BACKUP
+	ELSE
+	LD	DE,1018h
+	ENDIF
+	LD	A,CCh
+	LD	BC,D058h
+	CALL	SAVE_VRAM_RECT_AND_DRAW_BOX
+	LD	A,FFh
+	LD	HL,1923h
+	LD	BC,CA52h
+	CALL	COPY_SCROLLED_VRAM_RECT_TO_PAGE
+	LD	HL,ITEM_INFO_HEADER_TEXT
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+	CALL	ADVANCE_MAIN_SUBSTATE
+	IF	HINOTORI_ENHANCED = 00h
+	LD	DE,6810h
+	LD	BC,E068h
+	ENDIF
+	CALL	DISABLE_VDP_SPRITES
+	LD	A,34h
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; 19-byte positioned title string at BA87h..BA99h: X=40h, Y=28h, 'ITEM@INFORMATION' ('@'
+; renders as blank space in font), FFh terminator.
+ITEM_INFO_HEADER_TEXT:
+	IF	HINOTORI_ENHANCED
+	DB	"@(ITEM",00h,"INFORMATION",FFh
+	ELSE
+	DB	"@(ITEM@INFORMATION",FFh
+	ENDIF
+
+; F3 ITEM INFORMATION substates 1 (BA9Ah: render owned inventory icons & quantities), 2
+; (BAA0h: wait for any newly pressed button in C106h), and 3 (BAA8h: restore VRAM background
+; and return to MainState 5 gameplay), plus 41-slot inventory scanner (BAC2h..BB10h) reading
+; C850h..C8F0h (step 4) and blitting 16x16 icons via Bank 01 7B5Eh with optional 1-digit
+; counts via Bank 00 4850h.
+ITEM_INFO_SUBSTATE1_RENDER_ITEMS:
+	CALL	RENDER_ALL_OWNED_INVENTORY_ITEMS
+	JP	ADVANCE_MAIN_SUBSTATE	; asm/banks/bank00.asm
+
+; Wait for (C106h)!=0, then advance MainSubstate
+ITEM_INFO_SUBSTATE2_WAIT_BUTTON:
+	LD	A,(PRESSED_INPUT_BITS)
+	OR	A
+	RET	Z
+	JP	ADVANCE_MAIN_SUBSTATE	; asm/banks/bank00.asm
+
+; Restore 208x88 VRAM area (497Bh), sprites (55A2h/4CF8h/488Ah), and return to MainState 5
+; (43EDh)
+ITEM_INFO_SUBSTATE3_CLOSE_SCREEN:
+	LD	HL,1720h
+	IF	HINOTORI_ENHANCED
+	LD	DE,VRAM_PAGE3_LARGE_BOX_BACKUP
+	ELSE
+	LD	DE,1018h
+	ENDIF
+	LD	BC,D058h
+	CALL	RESTORE_VRAM_RECT_FROM_BACKUP
+	CALL	LOAD_STAGE_AND_SPRITE_PALETTES
+	CALL	ENABLE_VDP_SPRITES
+	IF	HINOTORI_ENHANCED = 00h
+	CALL	RESTORE_STAGE_VRAM_TILESETS
+	ENDIF
+	LD	B,05h
+	JP	TRANSITION_TO_MAIN_STATE_B	; asm/banks/bank00.asm
+
+; Scan 41 4-byte slots at C850h..C8F0h; call BAD9h for each nonzero slot
+RENDER_ALL_OWNED_INVENTORY_ITEMS:
+	LD	HL,INVENTORY_SLOTS_BASE
+	LD	DE,0004h
+	LD	B,29h
+
+.loc_baca:
+	LD	A,(HL)
+	OR	A
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	CALL	NZ,RENDER_ONE_INVENTORY_ITEM_SLOT
+	POP	BC
+	POP	DE
+	POP	HL
+	ADD	HL,DE
+	DJNZ	.loc_baca
+	RET
+
+; Look up (X, Y|flag) in BB11h; skip if Y==0; draw count at (X+4,Y+16) if Y bit 0 == 0; blit
+; icon via 7B5Eh
+RENDER_ONE_INVENTORY_ITEM_SLOT:
+	LD	(ITEM_QTY_RENDER_BYTE),A
+	LD	A,2Ah
+	SUB	B
+	LD	(ITEM_DRAW_ICON_ID),A
+	LD	DE,ITEM_INFO_ICON_COORD_TABLE
+	DEC	A
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	LD	A,D
+	OR	A
+	RET	Z
+	RES	00h,D
+	RRCA
+	JR	C,.loc_bb03
+	PUSH	DE
+	LD	HL,ITEM_QTY_RENDER_BYTE
+	LD	B,01h
+	LD	A,D
+	ADD	A,10h
+	LD	D,A
+	LD	A,E
+	ADD	A,04h
+	LD	E,A
+	CALL	RENDER_BCD_BYTES_AT_DE
+	POP	DE
+
+.loc_bb03:
+	LD	HL,SHARED_WORK_BUFFER
+	LD	A,E
+	LD	(ITEM_DRAW_COORD_Y),A
+	LD	A,D
+	LD	(ITEM_DRAW_COORD_X),A
+	JP	BLIT_16X16_INVENTORY_ICON_TO_VRAM	; asm/banks/bank01.asm
+
+; 88-byte (44-word) F3 ITEM INFORMATION coordinate/flag table (BB11h..BB68h) indexed by
+; 0-based inventory slot (0..40, plus 3 trailing 0062h padding words):
+;   Low byte  E = screen pixel Y (rows 38h, 4Dh, 62h)
+;   High byte D = screen pixel X | bit 0 suppress-quantity-digit flag (D = 00h hides slot!)
+; Hidden non-display slots include timed/instant buffs ([01h],[02h],[04h],[0Ch]), feather
+; placeholders ([05h],[07h]), alignment/padding gaps ([0Eh],[20h..22h],[28h]), and the TWO
+; UNUSED STANDALONE ITEMS: [06h] = Item 07h (0038h, Turtle Shell shield) & [0Bh] = Item 0Ch
+; (004Dh, Heart Orb base / cut standalone orb buff).
+ITEM_INFO_ICON_COORD_TABLE:
+	DW	1A38h
+	DW	0038h
+	DW	0023h
+	DW	5A38h
+	DW	0023h
+	DW	0038h
+	DW	0038h
+	DW	0038h
+	DW	1A4Dh
+	DW	424Dh
+	DW	6A4Dh
+	DW	004Dh
+	DW	0038h
+	DW	4338h
+	DW	0023h
+	DW	8338h
+	DW	9338h
+	DW	A338h
+	DW	B338h
+	DW	C338h
+	DW	D338h
+	DW	8362h
+	DW	9362h
+	DW	A362h
+	DW	B362h
+	DW	C362h
+	DW	D362h
+	DW	934Dh
+	DW	A34Dh
+	DW	B34Dh
+	DW	C34Dh
+	DW	D34Dh
+	DW	004Dh
+	DW	004Dh
+	DW	004Dh
+	DW	2362h
+	DW	3362h
+	DW	4362h
+	DW	5362h
+	DW	6362h
+	DW	0062h
+	DW	0062h
+	DW	0062h
+	DW	0062h
+
+; MainState 12h entry point (called from Bank 00 4675h): Firebird / stone-tablet in-game
+; dialogue box state machine, BD3Eh Firebird portrait tilemap renderer, recursive C0h..D2h
+; item-name token expander, typewriter glyph/kanji renderer (calling Bank 02 819Bh for wide
+; glyphs >= 80h), page-clear (7Eh) & newline (7Fh) control codes, and window close/restore
+; to MainState 5.
+GAMEPLAY_MESSAGE_STATE:
+	LD	A,B
+	DEC	A
+	JP	Z,BEGIN_SELECTED_GAMEPLAY_MESSAGE
+	JP	P,CLOSE_GAMEPLAY_MESSAGE
+	CALL	LOAD_BIRD_MESSAGE_FRAME_GFX
+	LD	HL,1720h
+	IF	HINOTORI_ENHANCED
+	LD	DE,VRAM_PAGE3_LARGE_BOX_BACKUP
+	ELSE
+	LD	DE,1018h
+	ENDIF
+	LD	A,CCh
+	IF	HINOTORI_ENHANCED
+	LD	BC,D078h
+	ELSE
+	LD	BC,D060h
+	ENDIF
+	CALL	SAVE_VRAM_RECT_AND_DRAW_BOX
+	LD	A,FFh
+	LD	HL,1923h
+	IF	HINOTORI_ENHANCED
+	LD	BC,CA72h
+	ELSE
+	LD	BC,CA5Ah
+	ENDIF
+	CALL	COPY_SCROLLED_VRAM_RECT_TO_PAGE
+	CALL	INITIALIZE_GAMEPLAY_MESSAGE_LAYOUT
+	CALL	ADVANCE_MAIN_SUBSTATE
+	CALL	DISABLE_VDP_SPRITES
+	LD	HL,COLLISION_AND_MSG_WORK
+	LD	BC,03FFh
+	CALL	ZERO_RAM_BLOCK_HL_BC
+	LD	HL,BIRD_MESSAGE_PORTRAIT_TILEMAP
+	LD	DE,4728h
+	LD	BC,1006h
+	CALL	DRAW_RECTANGULAR_TILEMAP_TO_VRAM
+	LD	DE,0808h
+	LD	BC,1006h
+	LD	HL,BIRD_MESSAGE_BOX_PALETTE_CMD_LIST
+	CALL	APPLY_BANK05_PALETTE_LIST_HL
+	CALL	RENDER_TILEMAP_AT_DE_DEFAULT
+	LD	A,34h
+	JP	DISPATCH_SOUND_COMMAND	; asm/banks/bank00.asm
+
+; Canonical BeginSelectedGameplayMessage: look up (C4BDh) in BE43h matrix and expand tokens
+BEGIN_SELECTED_GAMEPLAY_MESSAGE:
+	LD	A,78h
+	LD	(MAIN_STATE_TIMER),A
+	LD	A,(GAMEPLAY_MSG_SELECTOR)
+	IF	HINOTORI_ENHANCED
+	LD	HL,LANGUAGE_MODE_FLAG
+	BIT	00h,(HL)
+	JR	Z,.expand_jp_msg
+	LD	A,05h
+	CALL	MAP_BANK_A_INTO_PAGE2
+	CALL	EXPAND_AND_WRAP_ENGLISH_GAMEPLAY_MSG
+	LD	A,02h
+	CALL	MAP_BANK_A_INTO_PAGE2
+	JR	RENDER_GAMEPLAY_MESSAGE_STEP
+
+.expand_jp_msg:
+	ENDIF
+	LD	HL,GAMEPLAY_MESSAGE_POINTER_MATRIX
+	CALL	READ_WORD_FROM_HL_TABLE_A
+	CALL	EXPAND_SELECTED_GAMEPLAY_MESSAGE
+	JR	RENDER_GAMEPLAY_MESSAGE_STEP
+
+; Canonical ExpandSelectedGameplayMessage: expand message into E800h and terminate with FFh
+EXPAND_SELECTED_GAMEPLAY_MESSAGE:
+	LD	DE,SHARED_WORK_BUFFER
+	CALL	EXPAND_GAMEPLAY_MESSAGE_TOKENS
+	LD	A,FFh
+	LD	(DE),A
+	RET
+
+; Canonical ExpandGameplayMessageTokens: copy bytes, expanding codes >= C0h via BBECh
+EXPAND_GAMEPLAY_MESSAGE_TOKENS:
+	LD	A,(HL)
+	CP	FFh
+	RET	Z
+	INC	HL
+	CP	C0h
+	CALL	NC,EXPAND_GAMEPLAY_ITEM_TOKEN
+	JR	NC,EXPAND_GAMEPLAY_MESSAGE_TOKENS
+	LD	(DE),A
+	INC	DE
+	JR	EXPAND_GAMEPLAY_MESSAGE_TOKENS
+
+; Canonical ExpandGameplayItemToken: recursive lookup in BD9Eh ItemMessagePointerTable
+EXPAND_GAMEPLAY_ITEM_TOKEN:
+	PUSH	HL
+	PUSH	DE
+	SUB	C0h
+	LD	HL,ITEM_MESSAGE_POINTER_TABLE
+	CALL	READ_WORD_FROM_HL_TABLE_A
+	POP	DE
+	CALL	EXPAND_GAMEPLAY_MESSAGE_TOKENS
+	POP	HL
+	OR	A
+	RET
+
+; Canonical InitializeGameplayMessageLayout
+INITIALIZE_GAMEPLAY_MESSAGE_LAYOUT:
+	LD	BC,0001h
+	LD	(MSG_TYPEWRITER_STEP),BC
+
+; Canonical ResetGameplayMessageCursor: X=5, W=22 (16h), Y=11 (0Bh), H=4
+RESET_GAMEPLAY_MESSAGE_CURSOR:
+	LD	BC,1605h
+	LD	(MSG_BOX_ORIGIN_X),BC
+	IF	HINOTORI_ENHANCED
+	LD	BC,050Bh
+	ELSE
+	LD	BC,040Bh
+	ENDIF
+	LD	(MSG_BOX_ORIGIN_Y),BC
+	RET
+
+; Canonical RenderGameplayMessageStep: reveal one glyph per step
+RENDER_GAMEPLAY_MESSAGE_STEP:
+	CALL	RESET_GAMEPLAY_MESSAGE_CURSOR
+	LD	BC,0000h
+	LD	A,(MSG_BOX_ORIGIN_X)
+	DEC	A
+	LD	D,A
+	LD	A,(MSG_BOX_ORIGIN_Y)
+	LD	E,A
+	LD	HL,SHARED_WORK_BUFFER
+
+.loc_bc25:
+	PUSH	BC
+	CALL	READ_NEXT_GAMEPLAY_MESSAGE_CODE
+	POP	BC
+	CALL	C,HANDLE_GAMEPLAY_MESSAGE_DELAY
+	INC	BC
+	OR	A
+	PUSH	HL
+	LD	HL,(MSG_TYPEWRITER_STEP)
+	SBC	HL,BC
+	POP	HL
+	JR	NZ,.loc_bc25
+	INC	BC
+	LD	(MSG_TYPEWRITER_STEP),BC
+	CP	7Eh
+	JR	Z,CLEAR_GAMEPLAY_MESSAGE_AREA
+	LD	A,(MSG_BOX_ORIGIN_Y)
+	SUB	E
+	NEG
+	ADD	A,A
+	ADD	A,A
+	LD	C,A
+	ADD	A,A
+	ADD	A,C
+	LD	E,A
+	LD	A,(MSG_BOX_ORIGIN_Y)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	ADD	A,E
+	LD	E,A
+	LD	A,D
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	D,A
+	DEC	HL
+	LD	A,(HL)
+	CP	80h
+	JR	NC,DRAW_WIDE_GAMEPLAY_GLYPH
+	ADD	A,30h
+	JP	DRAW_SINGLE_ASCII_CHAR_AT_DE	; asm/banks/bank00.asm
+
+; Canonical DrawWideGameplayGlyph: render 16x16 wide kanji/symbol glyph >= 80h via Bank 02
+; 819Bh & 51EAh
+DRAW_WIDE_GAMEPLAY_GLYPH:
+	SUB	80h
+	PUSH	DE
+	CALL	BLIT_16X16_WIDE_KANJI_GLYPH_A
+	EX	DE,HL
+	POP	DE
+	LD	A,D
+	SUB	08h
+	LD	D,A
+	LD	A,E
+	SUB	04h
+	LD	E,A
+	LD	A,48h
+	LD	BC,1010h
+	JP	LMMM_BLIT_ICON_OR_TILE_RECT	; asm/banks/bank00.asm
+
+; Canonical HandleGameplayMessageDelay
+HANDLE_GAMEPLAY_MESSAGE_DELAY:
+	DEC	A
+	JR	Z,WAIT_FOR_GAMEPLAY_MESSAGE_FRAME
+	POP	HL
+	JP	ADVANCE_MAIN_SUBSTATE	; asm/banks/bank00.asm
+
+; Canonical WaitForGameplayMessageFrame
+WAIT_FOR_GAMEPLAY_MESSAGE_FRAME:
+	JR	$
+
+; Canonical ClearGameplayMessageArea: clear 22x4 text interior on 7Eh page break
+CLEAR_GAMEPLAY_MESSAGE_AREA:
+	LD	A,(MSG_BOX_ORIGIN_X)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	H,A
+	LD	A,(MSG_BOX_ORIGIN_Y)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	L,A
+	LD	A,(MSG_BOX_WIDTH)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	B,A
+	LD	A,(MSG_BOX_HEIGHT)
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	C,A
+	LD	D,00h
+	JP	FILL_VRAM_RECT_HMMV	; asm/banks/bank00.asm
+
+; Canonical ReadNextGameplayMessageCode
+READ_NEXT_GAMEPLAY_MESSAGE_CODE:
+	LD	A,(HL)
+	INC	HL
+	CP	7Eh
+	JR	Z,RESET_GAMEPLAY_MESSAGE_LINE
+	CP	7Fh
+	JR	Z,GAMEPLAY_MESSAGE_NEW_LINE
+	CP	FFh
+	JR	Z,FINISH_GAMEPLAY_MESSAGE
+	CP	80h
+	JR	NC,.loc_bcc5
+	CP	20h
+	JR	NZ,ADVANCE_GAMEPLAY_MESSAGE_CURSOR
+	LD	A,(MSG_BOX_ORIGIN_X)
+	CP	D
+	JR	NZ,ADVANCE_GAMEPLAY_MESSAGE_CURSOR
+	JR	READ_NEXT_GAMEPLAY_MESSAGE_CODE
+
+.loc_bcc5:
+	CALL	ADVANCE_GAMEPLAY_MESSAGE_CURSOR
+
+; Canonical AdvanceGameplayMessageCursor
+ADVANCE_GAMEPLAY_MESSAGE_CURSOR:
+	PUSH	HL
+	CALL	WRAP_GAMEPLAY_MESSAGE_CURSOR
+	POP	HL
+	RET	NC
+	LD	A,01h
+	RET
+
+; Canonical FinishGameplayMessage
+FINISH_GAMEPLAY_MESSAGE:
+	XOR	A
+	SCF
+	RET
+
+; Canonical GameplayMessageNewLine (7Fh control code)
+GAMEPLAY_MESSAGE_NEW_LINE:
+	PUSH	HL
+	LD	HL,MSG_BOX_ORIGIN_X
+	LD	A,(HL)
+	INC	HL
+	ADD	A,(HL)
+	LD	D,A
+	POP	HL
+	JR	READ_NEXT_GAMEPLAY_MESSAGE_CODE
+
+; Canonical ResetGameplayMessageLine (7Eh control code)
+RESET_GAMEPLAY_MESSAGE_LINE:
+	CALL	RESET_GAMEPLAY_MESSAGE_CURSOR
+	LD	BC,0000h
+	LD	A,(MSG_BOX_ORIGIN_X)
+	DEC	A
+	LD	D,A
+	LD	A,(MSG_BOX_ORIGIN_Y)
+	LD	E,A
+	RET
+
+; Canonical WrapGameplayMessageCursor
+WRAP_GAMEPLAY_MESSAGE_CURSOR:
+	INC	D
+	LD	A,D
+	LD	HL,MSG_BOX_ORIGIN_X
+	SUB	(HL)
+	INC	HL
+	CP	(HL)
+	CCF
+	RET	NC
+	LD	A,(MSG_BOX_ORIGIN_X)
+	LD	D,A
+	INC	E
+	LD	A,E
+	INC	HL
+	SUB	(HL)
+	INC	HL
+	CP	(HL)
+	CCF
+	RET	NC
+	DEC	HL
+	LD	E,(HL)
+	DEC	HL
+	DEC	HL
+	LD	D,(HL)
+	SCF
+	RET
+
+; Canonical CloseGameplayMessage: wait timer/input, restore VRAM window, return to MainState
+; 5
+CLOSE_GAMEPLAY_MESSAGE:
+	LD	A,(MAIN_STATE_TIMER)
+	OR	A
+	JR	NZ,.loc_bd19
+	LD	A,(MAIN_CONTROL_FLAGS)
+	AND	01h
+	JR	NZ,.loc_bd1e
+
+.loc_bd19:
+	LD	A,(PRESSED_INPUT_BITS)
+	OR	A
+	RET	Z
+
+.loc_bd1e:
+	LD	HL,1720h
+	IF	HINOTORI_ENHANCED
+	LD	DE,VRAM_PAGE3_LARGE_BOX_BACKUP
+	LD	BC,D078h
+	ELSE
+	LD	DE,1018h
+	LD	BC,D060h
+	ENDIF
+	CALL	RESTORE_VRAM_RECT_FROM_BACKUP
+	CALL	LOAD_STAGE_AND_SPRITE_PALETTES
+	CALL	ENABLE_VDP_SPRITES
+	IF	HINOTORI_ENHANCED = 00h
+	CALL	LOAD_HIRAGANA_AND_ALPHANUM_FONTS
+	ENDIF
+	XOR	A
+	LD	(GAMEPLAY_MSG_SELECTOR),A
+	LD	HL,0005h
+	LD	(MAIN_STATE),HL
+	RET
+
+; 96-byte (16x6) tilemap at BD3Eh..BD9Dh for the Firebird portrait header inside the
+; MainState 12h gameplay message window, drawn at BB9Fh (LD HL,BD3Eh / LD DE,4728h / LD
+; BC,1006h / CALL 51C8h).
+BIRD_MESSAGE_PORTRAIT_TILEMAP:
+	DB	00h,00h,00h,00h,00h,00h,00h,01h,02h,03h,04h,05h,06h,07h,08h,09h
+	DB	0Ah,0Bh,00h,00h,00h,00h,0Ch,0Dh,0Eh,0Fh,10h,11h,12h,00h,13h,14h
+	DB	15h,16h,17h,18h,00h,19h,1Ah,1Bh,1Ch,1Dh,1Eh,1Fh,20h,21h,22h,23h
+	DB	00h,45h,24h,25h,26h,27h,28h,29h,2Ah,2Bh,2Ch,2Dh,2Eh,2Fh,30h,00h
+	DB	00h,46h,31h,32h,33h,34h,35h,36h,37h,38h,39h,3Ah,3Bh,3Ch,3Dh,00h
+	DB	00h,00h,00h,00h,00h,00h,00h,3Eh,3Fh,40h,41h,42h,43h,44h,00h,00h
+
+; 19-entry 16-bit pointer table (BD9Eh..BDC3h) mapping message tokens C0h..D2h to
+; FFh-terminated item/phrase strings in BDC4h..BE42h. Canonical alias:
+; ItemMessagePointerTable.
+ITEM_MESSAGE_POINTER_TABLE:
+	DW	ITEM_MESSAGE_STRINGS
+	DW	ITEM_TOKEN_TEXT_BDCB
+	DW	ITEM_TOKEN_TEXT_BDCE
+	DW	ITEM_TOKEN_TEXT_BDD4
+	DW	ITEM_TOKEN_TEXT_BDDD
+	DW	ITEM_TOKEN_TEXT_BDE3
+	DW	ITEM_TOKEN_TEXT_BDE9
+	DW	ITEM_TOKEN_TEXT_BDF7
+	DW	ITEM_TOKEN_TEXT_BE02
+	DW	ITEM_TOKEN_TEXT_BE0D
+	DW	ITEM_TOKEN_TEXT_BE13
+	DW	ITEM_TOKEN_TEXT_BE18
+	DW	ITEM_TOKEN_TEXT_BE1B
+	DW	ITEM_TOKEN_TEXT_BE20
+	DW	ITEM_TOKEN_TEXT_BE29
+	DW	ITEM_TOKEN_TEXT_BE2D
+	DW	ITEM_TOKEN_TEXT_BE35
+	DW	ITEM_TOKEN_TEXT_BE3A
+	DW	ITEM_TOKEN_TEXT_BE3E
+
+; 127 bytes containing 19 FFh-terminated Hiragana phrase token strings (BDC4h..BE42h, tokens
+; C0h..D2h) referenced by ITEM_MESSAGE_POINTER_TABLE (e.g., C0h='がおうよ、', C1h='もん',
+; C2h='れいぼく' [霊木 = Sacred Wood Tablets], BEDFh='こころのたま' [Heart Orbs]).
+ITEM_MESSAGE_STRINGS:
+	DB	"5b42Ud",FFh
+
+ITEM_TOKEN_TEXT_BDCB:
+	DB	"R]",FFh
+
+ITEM_TOKEN_TEXT_BDCE:
+	DB	"Y1Mb7",FFh
+
+ITEM_TOKEN_TEXT_BDD4:
+	DB	48h,C1h,5Ch,"C4X",CCh,64h,FFh
+
+ITEM_TOKEN_TEXT_BDDD:
+	DB	5Ch,"?4;d",FFh
+
+ITEM_TOKEN_TEXT_BDE3:
+	DB	48h,C2h,5Ch,"BE",FFh
+
+ITEM_TOKEN_TEXT_BDE9:
+	DB	"1YD8YIbDWN=]e",FFh
+
+ITEM_TOKEN_TEXT_BDF7:
+	DB	":0d4T6D:1e",FFh
+
+ITEM_TOKEN_TEXT_BE02:
+	DB	"EN[W9OD:1e",FFh
+
+ITEM_TOKEN_TEXT_BE0D:
+	DB	"C9ZBb",FFh
+
+ITEM_TOKEN_TEXT_BE13:
+	DB	"J?bW",FFh
+
+ITEM_TOKEN_TEXT_BE18:
+	DB	"FN",FFh
+
+ITEM_TOKEN_TEXT_BE1B:
+	DB	"?QEI",FFh
+
+ITEM_TOKEN_TEXT_BE20:
+	DB	48h,C2h,5Ch,"RAB1X",FFh
+
+ITEM_TOKEN_TEXT_BE29:
+	DB	"DVd",FFh
+
+ITEM_TOKEN_TEXT_BE2D:
+	DB	C1h,5Ch,"C4X",CCh,64h,FFh
+
+ITEM_TOKEN_TEXT_BE35:
+	DB	"9H:6",FFh
+
+ITEM_TOKEN_TEXT_BE3A:
+	DB	"O6b",FFh
+
+ITEM_TOKEN_TEXT_BE3E:
+	DB	"JAU2",FFh
+
+; 96-byte (48-entry, 6 levels x 8 message slots) 16-bit pointer matrix (BE43h..BEA2h)
+; indexed by GameplayMessageSelector (C4BDh) at BBC7h. Canonical alias:
+; GameplayMessagePointerMatrix.
+GAMEPLAY_MESSAGE_POINTER_MATRIX:
+	DW	GAMEPLAY_BIRD_AND_TABLET_STRINGS
+	DW	GAMEPLAY_MSG_TEXT_BF00
+	DW	GAMEPLAY_MSG_TEXT_BF15
+	DW	GAMEPLAY_MSG_TEXT_BF2F
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	GAMEPLAY_MSG_TEXT_BEAF
+	DW	GAMEPLAY_MSG_TEXT_BF41
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	GAMEPLAY_MSG_TEXT_BEBB
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	GAMEPLAY_MSG_TEXT_BEC7
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	GAMEPLAY_MSG_TEXT_BED3
+	DW	GAMEPLAY_MSG_TEXT_BF62
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	GAMEPLAY_MSG_TEXT_BEDF
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+	DW	0000h
+
+; 232 bytes (BEA3h..BF8Ah) containing 11 FFh-terminated gameplay Firebird hint and
+; stone-tablet texts (6 per-level base hints with C0h+ item tokens + 5 multi-page/multiline
+; tablet texts using 7Eh page-clear and 7Fh line-break codes).
+GAMEPLAY_BIRD_AND_TABLET_STRINGS:
+	DB	C0h,96h,C3h,7Fh,89h,9Bh,C4h,96h,C5h,7Fh,C6h,FFh
+
+GAMEPLAY_MSG_TEXT_BEAF:
+	DB	C0h,97h,C3h,7Fh,8Ah,9Bh,C4h,97h,C5h,7Fh,C6h,FFh
+
+GAMEPLAY_MSG_TEXT_BEBB:
+	DB	C0h,98h,C3h,7Fh,8Bh,9Bh,C4h,98h,C5h,7Fh,C6h,FFh
+
+GAMEPLAY_MSG_TEXT_BEC7:
+	DB	C0h,99h,C3h,7Fh,8Ch,9Bh,C4h,99h,C5h,7Fh,C6h,FFh
+
+GAMEPLAY_MSG_TEXT_BED3:
+	DB	C0h,9Ah,C3h,7Fh,8Ah,9Bh,C4h,9Ah,C5h,7Fh,C6h,FFh
+
+GAMEPLAY_MSG_TEXT_BEDF:
+	DB	C0h,8Dh,9Bh,"C??52?QEId",7Fh,"99ZH?N5b1AA",D2h,"Bb<e",7Fh,C7h,FFh
+
+GAMEPLAY_MSG_TEXT_BF00:
+	DB	C0h,88h,CDh,7Fh,CEh,"9H",CBh,5Ch,"93?C9ZBb",CAh,7Fh,C8h,FFh
+
+GAMEPLAY_MSG_TEXT_BF15:
+	DB	C0h,CFh,C1h,48h,7Fh,"DN3C4D;b",C2h,"5b",D2h,45h,7Fh,"DWN<e",C7h,FFh
+
+GAMEPLAY_MSG_TEXT_BF2F:
+	DB	C0h,88h,CDh,7Fh,CEh,D0h,48h,CBh,"HC9ZBb",CAh,7Fh,C8h,FFh
+
+GAMEPLAY_MSG_TEXT_BF41:
+	DB	C0h,89h,CDh,7Fh,CEh,D0h,5Ch,D1h,"EN5bWD:1e",7Fh,9Bh,48h,C1h,"5b0XI<bBb<e",FFh
+
+GAMEPLAY_MSG_TEXT_BF62:
+	DB	C0h,8Ch,"H=515V:6Id",86h,7Fh,43h,87h,5Ch,"2N7A519D:D8YIb<<",7Fh,"QN=]e",C7h,FFh
+
+	IF	HINOTORI_ENHANCED
+
+; Render Ending Scene 2 Firebird speech index A in Japanese (Bank 06) or English (Bank 05)
+DRAW_ENDING_FIREBIRD_SPEECH_A:
+	LD	B,A
+	LD	A,05h
+	CALL	MAP_BANK_A_INTO_PAGE2
+	LD	A,(LANGUAGE_MODE_FLAG)
+	OR	A
+	LD	A,B
+	LD	HL,ENDING_FIREBIRD_MESSAGE_PTR_TABLE
+	JR	Z,.lookup_speech_ptr
+	LD	HL,ENDING_FIREBIRD_MESSAGE_PTR_TABLE_EN
+
+.lookup_speech_ptr:
+	CALL	READ_WORD_FROM_HL_TABLE_A
+	JR	DRAW_TEXT_AND_RESTORE_PAGE2
+
+; Map Bank 05 into Page 2, draw scrolled positioned text at HL, and restore Bank 02
+DRAW_BANK05_SCROLLED_TEXT_HL:
+	LD	A,05h
+	CALL	MAP_BANK_A_INTO_PAGE2
+
+DRAW_TEXT_AND_RESTORE_PAGE2:
+	CALL	DRAW_SCROLLED_POSITIONED_TEXT
+	LD	A,02h
+	JP	MAP_BANK_A_INTO_PAGE2	; asm/banks/bank00.asm
+	ENDIF
+
+; 117 bytes of unused FFh padding filling the remainder of Physical Bank 06 (BF8Bh..BFFFh).
+BANK06_TAIL_PADDING_FF:
+	DS	C000h - $,FFh
+
+	DEPHASE

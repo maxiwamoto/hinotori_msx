@@ -1,0 +1,5831 @@
+; Physical Bank 01 (ROM 02000h-03FFFh): Companion menu controls, route transitions, attract-mode replay, Konami boot logo, gameplay/auxiliary/terrain object dispatchers, SAT multiplexer, collision engine, and inventory effects
+
+; Copy selected player lives count into PLAYER_LIVES_BCD (C160h)
+SYNC_STARTING_LIVES_FROM_MENU:
+	LD	A,(CHEAT_PLAYER_LIVES_BCD)
+	LD	(PLAYER_LIVES_BCD),A
+	RET
+
+; Move companion debug menu cursor up/down across menu items
+ADJUST_COMPANION_MENU_CURSOR:
+	RRA
+	LD	A,01h
+	JR	NC,.loc_600e
+	LD	A,FFh
+
+.loc_600e:
+	LD	B,A
+	LD	HL,CHEAT_MENU_CURSOR_ROW
+	ADD	A,(HL)
+	AND	03h
+	CP	03h
+	JR	NZ,.loc_6020
+	LD	A,B
+	ADD	A,A
+	LD	A,02h
+	JR	C,.loc_6020
+	XOR	A
+
+.loc_6020:
+	PUSH	AF
+	PUSH	HL
+	LD	A,(HL)
+	CALL	ERASE_COMPANION_MENU_CURSOR
+	POP	HL
+	POP	AF
+	LD	(HL),A
+	JP	RENDER_COMPANION_MENU_CURSOR
+
+; Erase the companion debug menu cursor glyph at row index A
+ERASE_COMPANION_MENU_CURSOR:
+	LD	B,00h
+	JR	PUT_COMPANION_CURSOR_GLYPH_B
+
+; Draw the '>' cursor glyph (3Eh) at companion debug menu row index A
+RENDER_COMPANION_MENU_CURSOR:
+	LD	B,3Eh
+
+; Render character B at X=28h and the Y coordinate for companion menu row A
+PUT_COMPANION_CURSOR_GLYPH_B:
+	LD	HL,COMPANION_MENU_CURSOR_Y_TABLE
+	CALL	ADD_A_TO_HL
+	LD	E,(HL)
+	LD	D,28h
+	LD	A,B
+	JP	DRAW_FIXED_LENGTH_TEXT_AT_DE	; asm/banks/bank00.asm
+
+; Pixel Y coordinates (B0h, B8h, C0h) for the 3 companion debug menu rows
+COMPANION_MENU_CURSOR_Y_TABLE:
+	DB	B0h,B8h,C0h
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced counterpart to SAVE_ROUTE_STATE_SNAPSHOT_FOR_PIT: copies 7-byte
+; SAVED_ROUTE_STATE_BLOCK (C498h..C49Eh) back into MAP_RELOAD_AND_PWD_FLAG..RESPAWN_GAO_DIR
+STEP_COMPANION_STAGE_NUMBER:
+	LD	HL,SAVED_ROUTE_STATE_BLOCK
+	LD	DE,MAP_RELOAD_AND_PWD_FLAG
+	LD	BC,0007h
+	LDIR
+	RET
+
+; Unreferenced prototype difficulty-rank calculator: counts owned special weapons across
+; C870h..C880h and adds (min(FEATHER_ORB_COUNT, 1Fh) >> 3) into COLLECTED_PIECE_FLAGS
+STEP_COMPANION_LIVES_COUNT:
+	LD	A,(SCROLL_DIRECTION_MODE)
+	OR	A
+	RET	Z
+	LD	HL,INV_SUPERBALL_SLOTS_BASE
+	LD	DE,0004h
+	LD	BC,0500h
+
+.loc_605c:
+	LD	A,(HL)
+	OR	A
+	ADD	HL,DE
+	JR	Z,.loc_6062
+	INC	C
+
+.loc_6062:
+	DJNZ	.loc_605c
+	LD	A,(FEATHER_ORB_COUNT)
+	CP	1Fh
+	JR	C,.loc_606d
+	LD	A,1Fh
+
+.loc_606d:
+	RRCA
+	RRCA
+	RRCA
+	AND	03h
+	ADD	A,C
+	LD	(COLLECTED_PIECE_FLAGS),A
+	RET
+	ENDIF
+
+; Copy 6-byte route/boss destination descriptor from Bank 09
+; ROUTE_TRANSITION_DESCRIPTOR_TABLE into C486h-C48Bh
+APPLY_ROUTE_TRANSITION_DESCRIPTOR:
+	LD	A,(IX+OBJ_COLLISION_MODE)
+
+; Copy 6-byte Bank 09 route transition descriptor A into C486h-C48Bh and flag map reload
+LOAD_ROUTE_TRANSITION_BY_ID_A:
+	PUSH	AF
+	LD	A,09h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	POP	AF
+	LD	DE,ROUTE_TRANSITION_DESCRIPTOR_TABLE
+	LD	L,A
+	LD	H,00h
+	ADD	HL,HL
+	LD	B,H
+	LD	C,L
+	ADD	HL,HL
+	ADD	HL,BC
+	ADD	HL,DE
+	LD	DE,MAP_RELOAD_AND_PWD_FLAG
+	EX	DE,HL
+	SET	07h,(HL)
+	EX	DE,HL
+	INC	DE
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	LD	A,03h
+	JP	MAP_BANK_A_INTO_PAGE3	; asm/banks/bank00.asm
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced range check helper testing whether (IX+OBJ_Y) lies within [D, E)
+CHECK_VALUE_IN_RANGE_D_TO_E:
+	LD	A,(IX+OBJ_Y)
+	CP	D
+	CCF
+	RET	NC
+	CP	E
+	RET
+	ENDIF
+
+; Queue attract-demo BGM 37h or the per-stage BGM track from LEVEL_BGM_TRACK_ID_TABLE
+QUEUE_LEVEL_OR_ATTRACT_BGM:
+	LD	A,(MAIN_CONTROL_FLAGS)
+	BIT	00h,A
+	LD	A,37h
+	JP	NZ,QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+	LD	A,(LEVEL_INDEX)
+	LD	HL,LEVEL_BGM_TRACK_ID_TABLE
+	LD	E,A
+	LD	D,00h
+	ADD	HL,DE
+	LD	A,(HL)
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; Sound IDs for per-stage and boss BGM tracks (37h=Yamato, 3Ah=Future, 3Dh=Taiko, 40h=Hell)
+LEVEL_BGM_TRACK_ID_TABLE:
+	DB	37h,37h,37h,37h,37h,3Ah,3Dh,40h,3Ah
+	IF	HINOTORI_ENHANCED = 00h
+
+; No-op return stub invoked once per gameplay tick before stage logic
+NOOP_GAMEPLAY_DEBUG_HOOK:
+	RET
+	ENDIF
+
+; Render LEVEL_ROUTE_ROW and ACTIVE_ENEMY_OBJ_COUNT in BCD when 'aaaaa' DEBUG_CHEAT_MASTER_FLAG is active
+PLAY_CURRENT_LEVEL_BGM:
+	LD	A,(DEBUG_CHEAT_MASTER_FLAG)
+	OR	A
+	RET	Z
+	LD	HL,(LEVEL_ROUTE_ROW)
+	CALL	CONVERT_HL_BINARY_TO_BCD
+	LD	HL,SHARED_WORK_BUFFER
+	LD	(HL),E
+	INC	HL
+	LD	(HL),D
+	LD	B,02h
+	LD	DE,30B0h
+	CALL	RENDER_BCD_BYTES_AT_DE
+	LD	HL,(ACTIVE_ENEMY_OBJ_COUNT)
+	LD	H,00h
+	CALL	CONVERT_HL_BINARY_TO_BCD
+	LD	HL,SHARED_WORK_BUFFER
+	LD	(HL),E
+	INC	HL
+	LD	(HL),D
+	LD	B,02h
+	LD	DE,A0B0h
+	JP	RENDER_BCD_BYTES_AT_DE	; asm/banks/bank00.asm
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced helper restoring 16-bit GAO_POS_X_FRAC/Y_FRAC from GAO_PREV_POS_X/Y
+UNUSED_REVERT_GAO_FRAC_POS:
+	LD	HL,(GAO_PREV_POS_X)
+	LD	(GAO_POS_X_FRAC),HL
+	LD	HL,(GAO_PREV_POS_Y)
+	LD	(GAO_POS_Y_FRAC),HL
+	RET
+	ENDIF
+
+; Return carry set when GAO_RENDER_X/Y lies within object IX box offset by (D, E)
+TEST_GAO_IN_OFFSET_OBJECT_BOX:
+	LD	A,(GAO_RENDER_X)
+	SUB	(IX+OBJ_X)
+	SUB	D
+	CP	(IX+OBJ_EXTENT_X)
+	RET	NC
+	LD	A,(GAO_RENDER_Y)
+	SUB	(IX+OBJ_Y)
+	SUB	E
+	CP	(IX+OBJ_EXTENT_Y)
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced object animation-timer modulo table stepper
+UNUSED_STEP_OBJECT_MODULO_TABLE:
+	DEC	(IX+OBJ_ANIM_TIMER)
+	RET	NZ
+	LD	E,(IX+OBJ_VEL_Y_LO)
+	CALL	WRAP_INDEX_MODULO_HL
+	LD	(IX+OBJ_VEL_Y_LO),E
+	LD	(IX+OBJ_ANIM_TIMER),A
+	XOR	A
+	RET
+	ENDIF
+
+; Release linked sub-object slots and clear composite terrain structure IX
+RETIRE_COMPOSITE_TERRAIN_OBJECT:
+	PUSH	IX
+	POP	HL
+	LD	A,(TERRAIN_SPAWN_ROW_NEXT)
+	LD	(HL),A
+	XOR	A
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	(HL),F8h
+	LD	B,1Fh
+
+.loc_6145:
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	(HL),A
+	DJNZ	.loc_6145
+	RET
+
+; Zero the header byte of B records starting at HL with byte stride DE
+CLEAR_STRIDED_RECORD_HEADERS:
+	XOR	A
+
+.loc_6151:
+	LD	(HL),A
+	ADD	HL,DE
+	DJNZ	.loc_6151
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced helper decrementing (IX+OBJ_ANIM_TIMER) when nonzero
+UNUSED_DECREMENT_OBJ_ANIM_TIMER:
+	LD	A,(IX+OBJ_ANIM_TIMER)
+	OR	A
+	RET	Z
+	DEC	A
+	LD	(IX+OBJ_ANIM_TIMER),A
+	RET
+	ENDIF
+
+; Initialize primary terrain slot IX from 7-byte descriptor at (DE)
+INIT_COMPOSITE_TERRAIN_BASE_SLOT:
+	PUSH	IX
+	POP	HL
+	SET	05h,L
+	EX	DE,HL
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	XOR	A
+	LD	(DE),A
+	INC	HL
+	INC	E
+	EX	DE,HL
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced helper clearing the alternate composite terrain sub-slot header at IX+50h
+UNUSED_CLEAR_TERRAIN_ALT_SLOT_HEADER:
+	PUSH	IX
+	POP	HL
+	SET	06h,L
+	SET	04h,L
+	LD	(HL),00h
+	RET
+	ENDIF
+
+; Initialize alternate composite terrain sub-part from descriptor at (DE)
+INIT_COMPOSITE_TERRAIN_ALT_SLOT:
+	PUSH	IX
+	POP	HL
+	SET	06h,L
+	SET	04h,L
+	EX	DE,HL
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	INC	DE
+	LDI
+	XOR	A
+	LD	(DE),A
+	INC	E
+	LD	(DE),A
+	INC	E
+	INC	HL
+	INC	HL
+	INC	HL
+	EX	DE,HL
+	RET
+
+; Allocate and attach child sub-part record from 7-byte descriptor at (DE) to terrain object
+; IX
+ATTACH_COMPOSITE_TERRAIN_SUBSLOT:
+	EX	DE,HL
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	EX	DE,HL
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced 5-byte composite terrain sub-slot copy helper
+UNUSED_COPY_5BYTE_TERRAIN_SUBSLOT:
+	EX	DE,HL
+	LDI
+	LDI
+	LDI
+	LDI
+	LDI
+	XOR	A
+	LD	(DE),A
+	INC	E
+	LD	(DE),A
+	INC	E
+	LD	(DE),A
+	INC	E
+	INC	HL
+	INC	HL
+	INC	HL
+	EX	DE,HL
+	RET
+	ENDIF
+
+; Terminate composite terrain sub-part chain on object IX
+FINALIZE_COMPOSITE_TERRAIN_CHAIN:
+	XOR	A
+	LD	(HL),A
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced terrain sub-part Y-wrap dispatcher and per-part helpers
+UNUSED_CHECK_TERRAIN_PARTS_Y_WRAP:
+	LD	C,(IX+OBJ_PART_WRAP_MASK)
+	LD	A,C
+	OR	A
+	RET	Z
+	BIT	07h,C
+	CALL	NZ,TRIGGER_TERRAIN_PART0_AT_Y_WRAP
+	BIT	06h,C
+	CALL	NZ,TRIGGER_TERRAIN_PART1_AT_Y_WRAP
+	BIT	05h,C
+	CALL	NZ,TRIGGER_TERRAIN_PART2_AT_Y_WRAP
+	BIT	04h,C
+	CALL	NZ,TRIGGER_TERRAIN_PART3_AT_Y_WRAP
+	SCF
+	RET
+
+; Flag terrain sub-part 0 for execution and clear wrap bit 7 when its bottom Y reaches FFh
+TRIGGER_TERRAIN_PART0_AT_Y_WRAP:
+	LD	A,(IX+OBJ_Y)
+	ADD	A,(IX+OBJ_PART0_DY)
+	ADD	A,(IX+OBJ_PART0_HEIGHT)
+	INC	A
+	RET	NZ
+	SET	07h,(IX+OBJ_PART0_FLAGS)
+	RES	07h,(IX+OBJ_PART_WRAP_MASK)
+	RET
+
+; Flag terrain sub-part 1 for execution and clear wrap bit 6 when its bottom Y reaches FFh
+TRIGGER_TERRAIN_PART1_AT_Y_WRAP:
+	LD	A,(IX+OBJ_Y)
+	ADD	A,(IX+OBJ_PART1_DY)
+	ADD	A,(IX+OBJ_PART1_HEIGHT)
+	INC	A
+	RET	NZ
+	SET	07h,(IX+OBJ_PART1_FLAGS)
+	RES	06h,(IX+OBJ_PART_WRAP_MASK)
+	RET
+
+; Flag terrain sub-part 2 for execution and clear wrap bit 5 when its bottom Y reaches FFh
+TRIGGER_TERRAIN_PART2_AT_Y_WRAP:
+	LD	A,(IX+OBJ_Y)
+	ADD	A,(IX+OBJ_PART2_DY)
+	ADD	A,(IX+OBJ_PART2_HEIGHT)
+	INC	A
+	RET	NZ
+	SET	07h,(IX+OBJ_PART2_FLAGS)
+	RES	05h,(IX+OBJ_PART_WRAP_MASK)
+	RET
+
+; Flag terrain sub-part 3 for execution and clear wrap bit 4 when its bottom Y reaches FFh
+TRIGGER_TERRAIN_PART3_AT_Y_WRAP:
+	LD	A,(IX+OBJ_Y)
+	ADD	A,(IX+OBJ_PART3_DY)
+	ADD	A,(IX+OBJ_PART3_HEIGHT)
+	INC	A
+	RET	NZ
+	SET	07h,(IX+OBJ_PART3_FLAGS)
+	RES	04h,(IX+OBJ_PART_WRAP_MASK)
+	RET
+	ENDIF
+
+; Propagate parent terrain object IX position/visibility to attached sub-parts
+SYNC_COMPOSITE_TERRAIN_SUBPARTS:
+	LD	C,(IX+OBJ_PART_ACTIVE_MASK)
+	LD	A,C
+	OR	A
+	RET	Z
+	BIT	07h,C
+	CALL	NZ,ACTIVATE_TERRAIN_PART0_IN_VIEW
+	BIT	06h,C
+	CALL	NZ,ACTIVATE_TERRAIN_PART1_IN_VIEW
+	BIT	05h,C
+	CALL	NZ,ACTIVATE_TERRAIN_PART2_IN_VIEW
+	BIT	04h,C
+	CALL	NZ,ACTIVATE_TERRAIN_PART3_IN_VIEW
+	SCF
+	RET
+
+; Arm terrain sub-part 0 command bit 7 and clear active bit 7 once inside the visible Y band
+ACTIVATE_TERRAIN_PART0_IN_VIEW:
+	LD	A,(IX+OBJ_Y)
+	ADD	A,(IX+OBJ_PART0_DY)
+	ADD	A,(IX+OBJ_PART0_HEIGHT)
+	CP	D0h
+	CCF
+	RET	C
+	SUB	(IX+OBJ_PART0_HEIGHT)
+	ADD	A,20h
+	CP	E8h
+	CCF
+	RET	C
+	SET	07h,(IX+OBJ_PART0_FLAGS)
+	RES	07h,(IX+OBJ_PART_ACTIVE_MASK)
+	RET
+
+; Arm terrain sub-part 1 command bit 7 and clear active bit 6 once inside the visible Y band
+ACTIVATE_TERRAIN_PART1_IN_VIEW:
+	LD	A,(IX+OBJ_Y)
+	ADD	A,(IX+OBJ_PART1_DY)
+	ADD	A,(IX+OBJ_PART1_HEIGHT)
+	CP	D0h
+	CCF
+	RET	C
+	SUB	(IX+OBJ_PART1_HEIGHT)
+	ADD	A,20h
+	CP	E8h
+	CCF
+	RET	C
+	SET	07h,(IX+OBJ_PART1_FLAGS)
+	RES	06h,(IX+OBJ_PART_ACTIVE_MASK)
+	RET
+
+; Arm terrain sub-part 2 command bit 7 and clear active bit 5 once inside the visible Y band
+ACTIVATE_TERRAIN_PART2_IN_VIEW:
+	LD	A,(IX+OBJ_Y)
+	ADD	A,(IX+OBJ_PART2_DY)
+	ADD	A,(IX+OBJ_PART2_HEIGHT)
+	CP	D0h
+	CCF
+	RET	C
+	SUB	(IX+OBJ_PART2_HEIGHT)
+	ADD	A,20h
+	CP	E8h
+	CCF
+	RET	C
+	SET	07h,(IX+OBJ_PART2_FLAGS)
+	RES	05h,(IX+OBJ_PART_ACTIVE_MASK)
+	RET
+
+; Arm terrain sub-part 3 command bit 7 and clear active bit 4 once inside the visible Y band
+ACTIVATE_TERRAIN_PART3_IN_VIEW:
+	LD	A,(IX+OBJ_Y)
+	ADD	A,(IX+OBJ_PART3_DY)
+	ADD	A,(IX+OBJ_PART3_HEIGHT)
+	CP	D0h
+	CCF
+	RET	C
+	SUB	(IX+OBJ_PART3_HEIGHT)
+	ADD	A,20h
+	CP	E8h
+	CCF
+	RET	C
+	SET	07h,(IX+OBJ_PART3_FLAGS)
+	RES	04h,(IX+OBJ_PART_ACTIVE_MASK)
+	RET
+
+; Decode and clear terrain hit flags on IX, decrementing C834h if bit 2 indicates Gao
+; contact
+CONSUME_TERRAIN_HIT_AND_HURT_GAO:
+	LD	L,A
+	CALL	DECODE_AND_CLEAR_TERRAIN_HIT_MASK
+	BIT	02h,L
+	RET	Z
+	LD	HL,GAO_LETHAL_HIT_ACCUM
+	DEC	(HL)
+	RET
+
+; Zero all five terrain hit-flag bytes on IX and map hit bit 0..3 of A to D, E, H, or L
+DECODE_AND_CLEAR_TERRAIN_HIT_MASK:
+	OR	A
+	RET	Z
+	LD	(IX+OBJ_SLOT0_SAT_ATTR),00h
+	LD	(IX+OBJ_SLOT1_SAT_ATTR),00h
+	LD	(IX+OBJ_SLOT2_SAT_ATTR),00h
+	LD	(IX+OBJ_SLOT3_SAT_ATTR),00h
+	LD	(IX+OBJ_SLOT4_SAT_ATTR),00h
+	RRCA
+	JR	C,.loc_6303
+	RRCA
+	JR	C,.loc_6305
+	RRCA
+	JR	C,.loc_6307
+	RRCA
+	JR	C,.loc_6309
+	RET
+
+.loc_6303:
+	LD	A,D
+	RET
+
+.loc_6305:
+	LD	A,E
+	RET
+
+.loc_6307:
+	LD	A,H
+	RET
+
+.loc_6309:
+	LD	A,L
+	RET
+
+; Write tile value A into circular LEVEL_TILE_BUFFER at screen pixel coordinates (D, E)
+WRITE_SINGLE_TILE_AT_SCREEN_DE:
+	EX	AF,AF'
+	CALL	MAP_SCREEN_COORDS_TO_TILE_BUFFER
+	EX	AF,AF'
+	LD	(HL),A
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced entry that offsets DE by HL before falling into FILL_TILE_BUFFER_RECT_AT_DE
+UNUSED_OFFSET_DE_BY_HL_AND_FILL_RECT:
+	EX	AF,AF'
+	LD	A,H
+	ADD	A,D
+	LD	D,A
+	LD	A,L
+	ADD	A,E
+	LD	E,A
+	EX	AF,AF'
+	ENDIF
+
+; Fill a B-by-C tile rectangle in circular LEVEL_TILE_BUFFER at screen (D, E) with byte A
+FILL_TILE_BUFFER_RECT_AT_DE:
+	EX	AF,AF'
+	CALL	MAP_SCREEN_COORDS_TO_TILE_BUFFER
+	LD	A,B
+	EX	AF,AF'
+
+.loc_6320:
+	EX	AF,AF'
+	LD	B,A
+	EX	AF,AF'
+	PUSH	HL
+	IF	HINOTORI_ENHANCED
+	CALL	HS_FILL_TILE_ROW_B
+	NOP
+	ELSE
+
+.loc_6324:
+	LD	(HL),A
+	INC	HL
+	DJNZ	.loc_6324
+	ENDIF
+	POP	HL
+	LD	DE,0020h
+	ADD	HL,DE
+	RES	02h,H
+	DEC	C
+	JR	NZ,.loc_6320
+	RET
+
+; Configure route, weapon, inventory, stage graphics, and deterministic PRNG for the next
+; attract demo
+SETUP_NEXT_ATTRACT_DEMO_SESSION:
+	LD	HL,MAIN_CONTROL_FLAGS
+	SET	00h,(HL)
+	XOR	A
+	LD	(ATTRACT_DEMO_STOP_FLAG),A
+	CALL	INITIALIZE_NEW_GAME_STATE
+	LD	HL,ATTRACT_DEMO_INDEX
+	LD	A,(HL)
+	INC	(HL)
+	CP	02h
+	JR	C,.loc_634a
+	LD	(HL),00h
+
+.loc_634a:
+	LD	B,A
+	ADD	A,A
+	ADD	A,A
+	ADD	A,B
+	LD	HL,ATTRACT_DEMO_ROUTE_CONFIG_TABLE
+	CALL	ADD_A_TO_HL
+	LD	A,(HL)
+	LD	(CURRENT_ROUTE_ID),A
+	LD	(SPRITE_SET_SELECTOR),A
+	PUSH	HL
+	CALL	DERIVE_LEVEL_AND_ROUTE_FROM_ROUTE_ID
+	CALL	STORE_LEVEL_ROUTE_TUPLE
+	POP	HL
+	INC	HL
+	LD	E,(HL)
+	LD	D,00h
+	LD	(INITIAL_ROUTE_ROW),DE
+	INC	HL
+	LD	A,(HL)
+	LD	(GAO_WEAPON_FORM),A
+	LD	A,(ATTRACT_DEMO_INDEX)
+	AND	A
+	JR	Z,.loc_6382
+	INC	HL
+	LD	A,(HL)
+	LD	(INVENTORY_SLOTS_BASE),A
+	INC	HL
+	LD	A,(HL)
+	LD	(INV_STAGE_MAP_SLOT),A
+	JR	.loc_638f
+
+.loc_6382:
+	LD	HL,INVENTORY_SLOTS_BASE
+	LD	DE,INVENTORY_CLEAR_DEST
+	LD	(HL),01h
+	LD	BC,009Fh
+	LDIR
+
+.loc_638f:
+	CALL	INIT_ATTRACT_DEMO_WEAPON_BUFFS
+	CALL	INITIALIZE_NEW_STAGE_ENTRY_SETUP
+	LD	HL,0100h
+	LD	(ATTRACT_DEMO_STREAM_PTR),HL
+	XOR	A
+	LD	(ATTRACT_POPUP_INDEX),A
+	LD	HL,0000h
+	LD	(PRNG_STATE_WORD),HL
+	XOR	A
+	LD	(PRNG_MIX_BYTE),A
+	INC	A
+	LD	(GAME_ACTIVE_SESSION_FLAG),A
+	RET
+
+; Initial route/row/weapon setup parameters for title attract-mode demos
+ATTRACT_DEMO_ROUTE_CONFIG_TABLE:
+	DB	01h,1Fh,00h,00h,00h,07h,1Fh,03h,01h,01h,10h,60h,02h
+
+; Grant 40 feathers, level-3 rapid fire, and auto-fire for attract-mode demo playback
+INIT_ATTRACT_DEMO_WEAPON_BUFFS:
+	LD	A,28h
+	LD	(FEATHER_ORB_COUNT),A
+	LD	A,03h
+	LD	(INV_RAPID_FIRE_SLOT),A
+	LD	(CHEAT_AUTO_FIRE),A
+	JP	REFRESH_GAO_RAPID_FIRE_PARAMETERS
+
+; Advance title attract-mode countdown and step recorded gameplay demo input stream from
+; Bank 14
+UPDATE_ATTRACT_DEMO_TIMER_AND_REPLAY:
+	LD	A,(ATTRACT_WAIT_HIGH_CNT)
+	OR	A
+	RET	NZ
+	LD	A,7Fh
+	LD	(GAO_LETHAL_HIT_ACCUM),A
+	CALL	RUN_GAMEPLAY_FRAME
+	RET
+
+; Step end-of-demo wait countdown or map Bank 14 to feed recorded attract-mode inputs
+POLL_ATTRACT_DEMO_INPUT_TICK:
+	LD	HL,ATTRACT_WAIT_HIGH_CNT
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_63eb
+	DEC	(HL)
+	JR	Z,END_ATTRACT_DEMO_MODE
+	XOR	A
+	LD	(PRESSED_KEY_ROW6_BITS),A
+	LD	(PRESSED_KEY_ROW7_BITS),A
+	RET
+
+.loc_63eb:
+	LD	A,0Eh
+	CALL	MAP_BANK_A_INTO_PAGE2
+	CALL	DECODE_ATTRACT_INPUT_STREAM_STEP
+	JP	RESTORE_DEFAULT_CORE_BANKS	; asm/banks/bank00.asm
+
+; Advance the Bank 14 attract-demo input cursor and dispatch joystick, hotkey, popup, or end
+; tokens
+DECODE_ATTRACT_INPUT_STREAM_STEP:
+	XOR	A
+	LD	(PRESSED_KEY_ROW6_BITS),A
+	LD	(PRESSED_KEY_ROW7_BITS),A
+	LD	HL,ATTRACT_OR_ENDING_TIMER
+	DEC	(HL)
+	JR	NZ,.loc_640a
+	DEC	HL
+	INC	(HL)
+	CALL	READ_ATTRACT_STREAM_WORD_AT_HL
+	INC	HL
+	LD	(HL),D
+
+.loc_640a:
+	DEC	HL
+	CALL	READ_ATTRACT_STREAM_WORD_AT_HL
+	LD	A,E
+	BIT	07h,A
+	JP	Z,STORE_JOYSTICK_INPUT_AND_EDGES	; asm/banks/bank00.asm
+	CP	FEh
+	JR	C,INJECT_ATTRACT_FUNCTION_KEY_BITS
+	CP	FFh
+	JR	NZ,TRIGGER_ATTRACT_TUTORIAL_POPUP
+	LD	A,0Fh
+	LD	(ATTRACT_WAIT_HIGH_CNT),A
+	RET
+
+; Clear GAME_ACTIVE_SESSION_FLAG and attract-mode bit 0 of MAIN_CONTROL_FLAGS
+END_ATTRACT_DEMO_MODE:
+	XOR	A
+	LD	(GAME_ACTIVE_SESSION_FLAG),A
+	LD	HL,MAIN_CONTROL_FLAGS
+	RES	00h,(HL)
+	RET
+
+; 3-entry DW pointer table to Bank 14 recorded attract-mode input streams
+ATTRACT_DEMO_INPUT_STREAM_PTR_TABLE:
+	DW	ATTRACT_DEMO0_INPUT_STREAM
+	DW	ATTRACT_DEMO1_INPUT_STREAM
+	DW	ATTRACT_DEMO2_INPUT_STREAM
+
+; Fetch the 2-byte [input, duration] entry at cursor (HL) from the active Bank 14 attract
+; stream
+READ_ATTRACT_STREAM_WORD_AT_HL:
+	LD	B,(HL)
+	PUSH	HL
+	LD	A,(ATTRACT_DEMO_INDEX)
+	LD	DE,ATTRACT_DEMO_INPUT_STREAM_PTR_TABLE
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	LD	A,B
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	POP	HL
+	RET
+
+; Unpack an attract-stream hotkey token (80h-FDh) into PRESSED_KEY_ROW6_BITS and
+; PRESSED_KEY_ROW7_BITS
+INJECT_ATTRACT_FUNCTION_KEY_BITS:
+	RES	07h,A
+	LD	B,A
+	AND	1Ch
+	RRCA
+	RRCA
+	LD	(PRESSED_KEY_ROW6_BITS),A
+	LD	A,B
+	AND	03h
+	LD	(PRESSED_KEY_ROW7_BITS),A
+	RET
+
+; Play sound 2Eh, display the next attract-mode tutorial popup box, and reload stage VRAM
+; tilesets overwritten by the popup
+TRIGGER_ATTRACT_TUTORIAL_POPUP:
+	LD	A,2Eh
+	CALL	DISPATCH_SOUND_COMMAND
+	IF	HINOTORI_ENHANCED
+	LD	DE,ATTRACT_POPUP_LAYOUT_PTR_TABLE
+	LD	A,(LANGUAGE_MODE_FLAG)
+	OR	A
+	JR	Z,.load_attract_layout
+	LD	DE,ATTRACT_POPUP_LAYOUT_PTR_TABLE_EN
+
+.load_attract_layout:
+	LD	A,(ATTRACT_DEMO_INDEX)
+	ELSE
+	LD	A,(ATTRACT_DEMO_INDEX)
+	LD	DE,ATTRACT_POPUP_LAYOUT_PTR_TABLE
+	ENDIF
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	LD	HL,ATTRACT_POPUP_INDEX
+	LD	A,(HL)
+	INC	(HL)
+	LD	B,A
+	ADD	A,A
+	ADD	A,B
+	CALL	ADD_A_TO_DE
+	EX	DE,HL
+	LD	A,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	E,(HL)
+	IF	HINOTORI_ENHANCED = 00h
+	CALL	SHOW_AND_RESTORE_ATTRACT_POPUP
+	JP	RELOAD_STAGE_VRAM_TILESETS	; asm/banks/bank00.asm
+	ENDIF
+
+; Save an 80h-by-40h VRAM region, draw and hold an attract tutorial popup, then restore the
+; background
+SHOW_AND_RESTORE_ATTRACT_POPUP:
+	EX	DE,HL
+	PUSH	AF
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	ADD	A,L
+	LD	L,A
+	IF	HINOTORI_ENHANCED
+	LD	DE,VRAM_PAGE3_POPUP_BACKUP
+	LD	BC,9840h
+	LD	A,0Ch
+	ELSE
+	LD	DE,1000h
+	LD	BC,8040h
+	LD	A,04h
+	ENDIF
+	PUSH	DE
+	PUSH	HL
+	CALL	COPY_VRAM_RECT_HMMM_WRAP_SRC_Y
+	POP	DE
+	POP	HL
+	POP	AF
+	PUSH	HL
+	PUSH	DE
+	CALL	DRAW_ATTRACT_POPUP_AND_POLL_KEY
+	POP	DE
+	POP	HL
+	IF	HINOTORI_ENHANCED
+	LD	BC,9840h
+	LD	A,03h
+	ELSE
+	LD	BC,8040h
+	LD	A,01h
+	ENDIF
+	JP	COPY_TILE_RECT_BETWEEN_VRAM_PAGES	; asm/banks/bank00.asm
+
+; Render attract tutorial message A and poll keyboard row 8 for SPACE across a 9000h-loop
+; delay
+DRAW_ATTRACT_POPUP_AND_POLL_KEY:
+	LD	HL,ATTRACT_TUTORIAL_TEXT_PTR_TABLE
+	IF	HINOTORI_ENHANCED
+	PUSH	AF
+	LD	A,(LANGUAGE_MODE_FLAG)
+	OR	A
+	JR	Z,.load_attract_text_ptr
+	LD	HL,ATTRACT_TUTORIAL_TEXT_PTR_TABLE_EN
+
+.load_attract_text_ptr:
+	POP	AF
+	ENDIF
+	CALL	READ_WORD_FROM_HL_TABLE_A
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	NEG
+	ADD	A,E
+	LD	E,A
+	LD	C,FFh
+	CALL	DRAW_SCROLLED_CREDIT_LINE_AT_E
+	LD	HL,9000h
+
+.loc_64b4:
+	LD	A,08h
+	CALL	BIOS_SNSMAT
+	BIT	00h,A
+	LD	A,01h
+	LD	(ATTRACT_DEMO_STOP_FLAG),A
+	RET	Z
+	DEC	HL
+	LD	A,H
+	OR	L
+	JR	NZ,.loc_64b4
+	XOR	A
+	LD	(ATTRACT_DEMO_STOP_FLAG),A
+	RET
+
+; Reload tilesets, map, palettes, sprites, and BGM when MAP_RELOAD_AND_PWD_FLAG bit 7 is set
+EXECUTE_PENDING_ROUTE_TRANSITION:
+	LD	HL,MAP_RELOAD_AND_PWD_FLAG
+	RES	07h,(HL)
+	LD	A,(CURRENT_ROUTE_ID)
+	LD	(SPRITE_SET_SELECTOR),A
+	CALL	DERIVE_LEVEL_AND_ROUTE_FROM_ROUTE_ID
+	EX	AF,AF'
+	LD	A,(LEVEL_NUMBER)
+	CP	D
+	JR	NZ,.loc_64f4
+	LD	A,(LEVEL_INDEX)
+	CP	E
+	JR	NZ,.loc_64ed
+	EX	AF,AF'
+	CALL	STORE_LEVEL_ROUTE_TUPLE
+	JP	RELOAD_ROUTE_KEEPING_TILESETS_AND_PALETTE	; asm/banks/bank00.asm
+
+.loc_64ed:
+	EX	AF,AF'
+	CALL	STORE_LEVEL_ROUTE_TUPLE
+	JP	RELOAD_ROUTE_WITH_FULL_GFX_AND_BGM	; asm/banks/bank00.asm
+
+.loc_64f4:
+	EX	AF,AF'
+	CALL	STORE_LEVEL_ROUTE_TUPLE
+	LD	HL,DIFFICULTY_RANK_COUNTER
+	LD	A,(HL)
+	CP	0Ah
+	JR	NC,.loc_6501
+	INC	(HL)
+
+.loc_6501:
+	LD	A,08h
+	JP	SET_MAIN_STATE_AND_RESET_SUBSTATE	; asm/banks/bank00.asm
+
+; Detect Gao crossing left (< 0Ch -> spawn X=F2h on lane-1) or right (>= F5h -> spawn X=0Eh on
+; lane+1) screen edges to wrap horizontally across adjacent stage route lanes (0..2).
+; Also ticks POST_WRAP_GRACE_TIMER (C4C8h) once per gameplay tick (two VBlanks) while nonzero and,
+; on the first frame after a horizontal wrap (HORIZ_WRAP_PENDING_FLAG C4C9h != 0), invokes
+; RUN_POST_HORIZ_WRAP_HOOK_AND_CLEAR.
+CHECK_HORIZONTAL_ROUTE_BOUNDARY:
+	LD	A,(HORIZ_WRAP_PENDING_FLAG)
+	OR	A
+	CALL	NZ,RUN_POST_HORIZ_WRAP_HOOK_AND_CLEAR
+	LD	A,(GAO_MODE)
+	CP	02h
+	RET	Z
+	LD	A,(GAO_KNOCKBACK_DIR)
+	OR	A
+	RET	NZ
+	LD	HL,POST_WRAP_GRACE_TIMER
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_6520
+	INC	(HL)
+
+.loc_6520:
+	LD	A,(GAO_POS_X)
+	CP	F5h
+	JR	NC,.loc_6532
+	CP	0Ch
+	RET	NC
+	LD	D,F2h
+	LD	A,(ROUTE_INDEX)
+	DEC	A
+	JR	.loc_6538
+
+.loc_6532:
+	LD	D,0Eh
+	LD	A,(ROUTE_INDEX)
+	INC	A
+
+.loc_6538:
+	CP	03h
+	JR	C,.loc_653e
+	LD	A,02h
+
+.loc_653e:
+	JR	NZ,.loc_6541
+	XOR	A
+
+.loc_6541:
+	LD	(ROUTE_INDEX),A
+	CALL	COMPUTE_SPRITE_SET_SELECTOR
+	LD	(CURRENT_ROUTE_ID),A
+	LD	HL,(LEVEL_ROUTE_ROW)
+	LD	(INITIAL_ROUTE_ROW),HL
+	LD	A,D
+	LD	(RESPAWN_GAO_X),A
+	LD	A,80h
+	LD	(MAP_RELOAD_AND_PWD_FLAG),A
+	LD	HL,HORIZ_WRAP_PENDING_FLAG
+	LD	(HL),01h
+	LD	A,(GAO_FACING_DIR)
+	LD	(RESPAWN_GAO_DIR),A
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	AND	07h
+	LD	C,A
+	LD	A,(GAO_POS_Y)
+	ADD	A,C
+	INC	A
+	LD	(RESPAWN_GAO_Y),A
+	LD	A,(GAO_POS_Y)
+	CP	C0h
+	RET	C
+	LD	A,(RESPAWN_GAO_Y)
+	SUB	08h
+	LD	(RESPAWN_GAO_Y),A
+	LD	HL,(LEVEL_ROUTE_ROW)
+	DEC	HL
+	LD	(INITIAL_ROUTE_ROW),HL
+	RET
+
+; Post-horizontal-wrap hook: Enhanced enables the cut Stage 2 Enemy 16 ambush.
+; Main/A1 retain the original disabled 10-byte sequence: CALL a dummy RET, clear only
+; HORIZ_WRAP_PENDING_FLAG, then RET (A1 658Ah..6593h; Main 6588h..6591h).
+; Enhanced calls CHECK_ENEMY16_POST_WRAP_TIMER, then stores 0001h to the adjacent
+; POST_WRAP_GRACE_TIMER / HORIZ_WRAP_PENDING_FLAG bytes. The first crossing starts the
+; timer; without H. SCROLL, crossing back while it is 01h..0Fh permits a trio on routes
+; containing Enemy 16. With the camera active, every eligible crossing permits a trio.
+; The timer advances once per gameplay tick: nominally 0.5 s at 60 Hz video or 0.6 s
+; at 50 Hz for 15 ticks. Horizontal-camera route crossings use this same hook.
+RUN_POST_HORIZ_WRAP_HOOK_AND_CLEAR:
+	IF	HINOTORI_ENHANCED
+	CALL	CHECK_ENEMY16_POST_WRAP_TIMER
+	LD	HL,0001h
+	LD	(POST_WRAP_GRACE_TIMER),HL
+	RET
+	ELSE
+	CALL	NOOP_POST_TRANSITION_HOOK
+	LD	HL,HORIZ_WRAP_PENDING_FLAG
+	LD	(HL),00h
+	RET
+
+; Retail 1-byte RET stub (6593h in [a1] / 6591h in Main) occupying the byte freed when Konami
+; shortened the 16-bit C4C8h..C4C9h store to a 1-byte C4C9h clear to disable Enemy 16
+NOOP_POST_TRANSITION_HOOK:
+	RET
+	ENDIF
+
+; Active horizontal camera: allow the ambush on every eligible route crossing.
+; Otherwise gate it to rapid back-and-forth wraps where POST_WRAP_GRACE_TIMER
+; (C4C8h) is 01h..0Fh (15 gameplay ticks after the previous horizontal wrap)
+CHECK_ENEMY16_POST_WRAP_TIMER:
+	IF	HINOTORI_ENHANCED
+	LD	A,(HS_FLAGS)
+	BIT	HSF_ACTIVE_BIT,A
+	JR	NZ,SPAWN_ENEMY16_IF_PRESENT_ON_ROUTE
+	ENDIF
+	LD	HL,POST_WRAP_GRACE_TIMER
+	LD	A,(HL)
+	DEC	A
+	CP	0Fh
+	RET	NC
+
+; Check OBJECT_TYPE16_PRESENCE (CF16h; D0h on Stage 2 Routes 1 & 2 via Bank 07 Set 03/04,
+; 00h on Stage 2 Route 3 and all other stages) and spawn three OBJ_TYPE 16h chasers
+SPAWN_ENEMY16_IF_PRESENT_ON_ROUTE:
+	LD	A,(OBJECT_TYPE16_PRESENCE)
+	OR	A
+	RET	Z
+	JP	SPAWN_OBJ_TYPE_16_TRIO_AROUND_GAO	; asm/banks/bank03.asm
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced helper syncing SPRITE_SET_SELECTOR from CURRENT_ROUTE_ID and storing route tuple
+UNUSED_SYNC_SELECTOR_AND_ROUTE_TUPLE:
+	LD	A,(CURRENT_ROUTE_ID)
+	LD	(SPRITE_SET_SELECTOR),A
+	CALL	DERIVE_LEVEL_AND_ROUTE_FROM_ROUTE_ID
+	JP	STORE_LEVEL_ROUTE_TUPLE
+	ENDIF
+
+; Store decoded A=ROUTE_INDEX, D=LEVEL_NUMBER, E=LEVEL_INDEX. Main/A1 also update
+; CURRENT_STAGE_DISPLAY_BCD. Does not clear object or terrain records.
+STORE_LEVEL_ROUTE_TUPLE:
+	LD	(ROUTE_INDEX),A
+	LD	A,D
+	LD	(LEVEL_NUMBER),A
+	IF	HINOTORI_ENHANCED = 00h
+	LD	(CURRENT_STAGE_DISPLAY_BCD),A
+	ENDIF
+	LD	A,E
+	LD	(LEVEL_INDEX),A
+	RET
+
+; Decode CURRENT_ROUTE_ID (0..24) into LEVEL_NUMBER, LEVEL_INDEX, ROUTE_INDEX, and
+; SPRITE_SET_SELECTOR
+DERIVE_LEVEL_AND_ROUTE_FROM_ROUTE_ID:
+	LD	DE,ROUTE_ID_TO_LEVEL_TUPLE_TABLE
+	LD	L,A
+	ADD	A,A
+	ADD	A,L
+	LD	L,A
+	LD	H,00h
+	ADD	HL,DE
+	LD	D,(HL)
+	INC	HL
+	LD	E,(HL)
+	INC	HL
+	LD	A,(HL)
+	RET
+
+; Configure center-route spawn coordinates, row 001Fh, and reload flag for F5 Compass
+; destination stage A
+PREPARE_COMPASS_WARP_DESTINATION:
+	LD	(LEVEL_NUMBER),A
+	LD	A,01h
+	LD	(ROUTE_INDEX),A
+	CALL	COMPUTE_SPRITE_SET_SELECTOR
+	LD	(CURRENT_ROUTE_ID),A
+	LD	A,80h
+	LD	(RESPAWN_GAO_X),A
+	LD	(MAP_RELOAD_AND_PWD_FLAG),A
+	LD	A,90h
+	LD	(RESPAWN_GAO_Y),A
+	XOR	A
+	LD	(RESPAWN_GAO_DIR),A
+	LD	HL,001Fh
+	LD	(INITIAL_ROUTE_ROW),HL
+	RET
+
+; Look up route tuple for CURRENT_ROUTE_ID in 6609h table and return SPRITE_SET_SELECTOR
+COMPUTE_SPRITE_SET_SELECTOR:
+	LD	A,(ROUTE_INDEX)
+	CP	03h
+	JR	C,.loc_65fc
+	LD	A,02h
+
+.loc_65fc:
+	JR	NZ,.loc_65ff
+	XOR	A
+
+.loc_65ff:
+	LD	C,A
+	LD	A,(LEVEL_NUMBER)
+	DEC	A
+	LD	B,A
+	ADD	A,A
+	ADD	A,B
+	ADD	A,C
+	RET
+
+; 25 x 3-byte [level_num, level_idx, route_idx] lookup tuples indexed by CURRENT_ROUTE_ID
+ROUTE_ID_TO_LEVEL_TUPLE_TABLE:
+	DB	01h,00h,00h
+	DB	01h,00h,01h
+	DB	01h,00h,02h
+	DB	02h,01h,00h
+	DB	02h,01h,01h
+	DB	02h,01h,02h
+	DB	03h,02h,00h
+	DB	03h,02h,01h
+	DB	03h,02h,02h
+	DB	04h,03h,00h
+	DB	04h,03h,01h
+	DB	04h,03h,02h
+	DB	05h,04h,00h
+	DB	05h,04h,01h
+	DB	05h,04h,02h
+	DB	06h,05h,00h
+	DB	06h,05h,01h
+	DB	06h,05h,02h
+	DB	01h,06h,03h
+	DB	02h,06h,03h
+	DB	03h,06h,03h
+	DB	04h,06h,03h
+	DB	05h,06h,03h
+	DB	06h,07h,03h
+	DB	00h,00h,00h
+
+; Reset dynamic gameplay object SAT entries (Y=E0h) and sprite slot allocation counters
+CLEAR_DYNAMIC_OBJECT_SAT_AND_COLORS:
+	LD	HL,SPAWN_TRAP_GRACE_TIMER
+	LD	A,(HL)
+	OR	A
+	CALL	NZ,DECREMENT_SPAWN_TRAP_GRACE_TIMER
+	XOR	A
+	LD	(SCREEN_WIPE_ACTIVE_FLAG),A
+	LD	(SCROLL_FREEZE_FLAGS),A
+	CALL	LATCH_SCREEN_WIPE_ITEM_TRIGGER
+	CALL	SYNC_EVENT_FLAGS_AND_HALT_SCROLL
+	RET
+
+; Decrement SPAWN_TRAP_GRACE_TIMER at (HL)
+DECREMENT_SPAWN_TRAP_GRACE_TIMER:
+	CP	01h
+	DEC	(HL)
+	RET
+
+; Transfer SCREEN_WIPE_ITEM_REQ into SCREEN_WIPE_ACTIVE_FLAG, clear C580h, and queue
+; sound 21h
+LATCH_SCREEN_WIPE_ITEM_TRIGGER:
+	LD	A,(SCREEN_WIPE_ITEM_REQ)
+	OR	A
+	RET	Z
+	LD	(SCREEN_WIPE_ACTIVE_FLAG),A
+	XOR	A
+	LD	(SCREEN_WIPE_ITEM_REQ),A
+	LD	A,21h
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; Copy nonzero GAMEPLAY_EVENT_FLAGS (C581h) to SCROLL_FREEZE_FLAGS (C204h) and zero VERTICAL_SCROLL_DELTA
+SYNC_EVENT_FLAGS_AND_HALT_SCROLL:
+	LD	A,(GAMEPLAY_EVENT_FLAGS)
+	OR	A
+	RET	Z
+	LD	(SCROLL_FREEZE_FLAGS),A
+	XOR	A
+	LD	(VERTICAL_SCROLL_DELTA),A
+	RET
+
+; Clear VRAM, unpack 3-layer Bank 09 Konami emblem/logotype 1bpp tiles, render tilemap, and
+; apply boot palette
+DRAW_KONAMI_BOOT_LOGO_SCREEN:
+	CALL	DISABLE_VDP_DISPLAY_AND_SPRITES
+	CALL	DISABLE_VDP_SPRITES
+	CALL	CLEAR_SPRITES
+	CALL	INIT_DEFAULT_VDP_CONTROL_REGS
+	LD	HL,KONAMI_BOOT_LOGO_PALETTE_LIST
+	CALL	APPLY_PALETTE_COMMAND_LIST
+	LD	BC,0007h
+	CALL	BIOS_WRTVDP
+	LD	B,0Fh
+	LD	C,07h
+	CALL	BIOS_WRTVDP
+	LD	HL,2840h
+	LD	BC,A848h
+	LD	A,FFh
+	LD	D,01h
+	CALL	FILL_VRAM_RECT_HMMV
+	XOR	A
+	LD	H,A
+	LD	L,A
+	LD	D,A
+	LD	B,A
+	LD	C,A
+	DEC	A
+	CALL	FILL_VRAM_RECT_HMMV
+	LD	A,09h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	CALL	UPLOAD_KONAMI_LOGO_1BPP_TILES
+	LD	A,03h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	CALL	ENABLE_VDP_DISPLAY_AND_SPRITES
+	LD	HL,CALLBACK_DELAY_TIMER
+	LD	(HL),3Ch
+	INC	HL
+	LD	(HL),31h
+	INC	HL
+	LD	(HL),00h
+	RET
+
+; V9938 palette command list for Konami boot logo screen (colors 0, 1, 2, 3, 15)
+KONAMI_BOOT_LOGO_PALETTE_LIST:
+	DB	00h,77h,07h
+	DB	01h,70h,03h
+	DB	02h,60h,01h
+	DB	03h,44h,04h
+	DB	0Fh,77h,07h
+	DB	FFh
+
+; Step Konami boot logo display timer and transition to Title screen
+UPDATE_KONAMI_BOOT_LOGO_STATE:
+	LD	HL,CALLBACK_DELAY_TIMER
+	DEC	(HL)
+	LD	A,(HL)
+	INC	HL
+	DEC	(HL)
+	JR	NZ,.loc_66fd
+	LD	A,01h
+	LD	(DEFERRED_CALLBACK_PTR),A
+	RET
+
+.loc_66fd:
+	LD	A,31h
+	SUB	(HL)
+	LD	C,A
+	LD	B,A8h
+	LD	HL,2840h
+	LD	DE,2840h
+	LD	A,01h
+	JP	COPY_VRAM_RECT_HMMM	; asm/banks/bank00.asm
+
+; Blit 8x8 Konami boot logo tiles from stream HL to VRAM (D, E), handling FEh row-offset and
+; FFh end codes
+RENDER_KONAMI_LOGO_TILE_STREAM:
+	PUSH	DE
+
+.loc_670f:
+	LD	A,(HL)
+	INC	HL
+	LD	C,A
+	INC	A
+	JR	Z,.loc_672c
+	INC	A
+	JR	NZ,.loc_6723
+	POP	DE
+	LD	A,(HL)
+	INC	HL
+	ADD	A,D
+	LD	D,A
+	LD	A,08h
+	ADD	A,E
+	LD	E,A
+	JR	RENDER_KONAMI_LOGO_TILE_STREAM
+
+.loc_6723:
+	LD	A,C
+	CALL	BLIT_CACHED_8X8_TILE_FROM_PAGE1_FAST
+	CALL	ADVANCE_VRAM_TILE_DEST_DE_BY_8PX
+	JR	.loc_670f
+
+.loc_672c:
+	POP	DE
+	RET
+
+; Unpack upper emblem, lower emblem, and 'KONAMI' logotype 1bpp tiles from Bank 09 to VRAM
+UPLOAD_KONAMI_LOGO_1BPP_TILES:
+	LD	HL,KONAMI_LOGO_EMBLEM_UPPER_1BPP_TILES
+	LD	DE,0800h
+	LD	BC,0D01h
+	CALL	UNPACK_1BPP_TILES_TO_VRAM_DE
+	LD	HL,KONAMI_LOGO_EMBLEM_LOWER_1BPP_TILES
+	LD	DE,7000h
+	LD	BC,0D02h
+	CALL	UNPACK_1BPP_TILES_TO_VRAM_DE
+	LD	HL,KONAMI_LOGO_LOGOTYPE_1BPP_TILES
+	LD	DE,D800h
+	LD	BC,1A03h
+	CALL	UNPACK_1BPP_TILES_TO_VRAM_DE
+	LD	DE,4040h
+	LD	HL,KONAMI_BOOT_LOGO_TILEMAP_STREAM
+	CALL	RENDER_KONAMI_LOGO_TILE_STREAM
+	RET
+
+; RLE/row-offset encoded tilemap stream for Konami boot emblem and logotype
+KONAMI_BOOT_LOGO_TILEMAP_STREAM:
+	DB	01h,02h,03h,FEh,F8h,04h,05h,06h,07h,FEh,F0h,08h,09h,0Ah,0Bh,0Eh
+	DB	0Fh,10h,11h,1Bh,1Ch,1Dh,1Eh,1Fh,20h,21h,22h,23h,24h,25h,26h,FEh
+	DB	00h,0Ch,02h,0Dh,12h,13h,14h,15h,27h,28h,29h,2Ah,2Bh,2Ch,2Dh,2Eh
+	DB	2Fh,30h,31h,32h,33h,34h,FEh,10h,16h,19h,17h,FEh,F8h,18h,19h,1Ah
+	DB	FFh
+
+; Disabled prototype per-stage C900h tile-collision override stub (CPU 679Dh in Main, 679Fh in [a1]).
+;
+; Superseded once Bank 04 tile-upload descriptors ([count, dst_tile, collision_attr]) populated
+; C900h..C9FFh directly and standardized tile 00h as walkable empty ground (leaving C440h/C442h=00h).
+; Konami disabled this system in three layers:
+;   1. Pointed all 8 LEVEL_INDEX entries in UNUSED_STAGE_ATTR_PTR_TABLE to UNUSED_STAGE_ATTR_EMPTY_LIST
+;      (FFh), stranding two earlier prototype [attr, tile_id] lists immediately after that FFh byte.
+;   2. Prepended a 1-byte RET here so callers return immediately without reading the pointer table.
+;   3. Deleted the duplicate CALL at 488Dh in [a1] (3 of the 7 bytes shifting [a1] vs Main), leaving
+;      only the CALL in LOAD_STAGE_FONTS_TILESETS_AND_PALETTES.
+	IF	HINOTORI_ENHANCED = 00h
+
+NOOP_STAGE_ATTR_OVERRIDE_STUB:
+	RET
+
+; Unreachable body of the disabled per-stage C900h tile-collision attribute patcher: reads
+; FFh-terminated [collision_attr, tile_id] pairs for LEVEL_INDEX (0..7), writes C900h[tile_id]=attr,
+; and caches representative tile IDs by attribute class in C440h..C446h
+UNUSED_PATCH_STAGE_TILE_ATTRS:
+	LD	A,(LEVEL_INDEX)
+	LD	DE,UNUSED_STAGE_ATTR_PTR_TABLE
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	EX	DE,HL
+
+.loc_67a8:
+	LD	A,(HL)
+	CP	FFh
+	RET	Z
+	INC	HL
+	LD	C,(HL)
+	INC	HL
+	LD	B,C9h
+	LD	(BC),A
+	CP	00h
+	JR	Z,.loc_67de
+	CP	05h
+	JR	Z,.loc_67e4
+	CP	61h
+	JR	Z,.loc_67d2
+	CP	60h
+	JR	Z,.loc_67d8
+	CP	40h
+	JR	Z,.loc_67ea
+	CP	00h
+	JR	Z,.loc_67f0
+	JR	.loc_67a8
+
+; Orphaned branch (no JR targets it) storing tile_id C into BROKEN_BUSH_REPLACE_TILE (C440h)
+.unused_store_bush_replace_tile:
+	LD	A,C
+	LD	(BROKEN_BUSH_REPLACE_TILE),A
+	JR	.loc_67a8
+
+.loc_67d2:
+	LD	A,C
+	LD	(UNUSED_ATTR61_TILE_ID),A
+	JR	.loc_67a8
+
+.loc_67d8:
+	LD	A,C
+	LD	(UNUSED_ATTR60_TILE_ID),A
+	JR	.loc_67a8
+
+.loc_67de:
+	LD	A,C
+	LD	(BROKEN_TILE50_REPLACE_TILE),A
+	JR	.loc_67a8
+
+.loc_67e4:
+	LD	A,C
+	LD	(UNUSED_ATTR05_TILE_ID),A
+	JR	.loc_67a8
+
+.loc_67ea:
+	LD	A,C
+	LD	(UNUSED_ATTR40_TILE_ID),A
+	JR	.loc_67a8
+
+.loc_67f0:
+	LD	A,C
+	LD	(UNUSED_ATTR00_DUP_TILE_ID),A
+	JR	.loc_67a8
+
+; 8-entry LEVEL_INDEX (0..7) pointer table for UNUSED_PATCH_STAGE_TILE_ATTRS (all 8 point to FFh)
+UNUSED_STAGE_ATTR_PTR_TABLE:
+	DW	UNUSED_STAGE_ATTR_EMPTY_LIST
+	DW	UNUSED_STAGE_ATTR_EMPTY_LIST
+	DW	UNUSED_STAGE_ATTR_EMPTY_LIST
+	DW	UNUSED_STAGE_ATTR_EMPTY_LIST
+	DW	UNUSED_STAGE_ATTR_EMPTY_LIST
+	DW	UNUSED_STAGE_ATTR_EMPTY_LIST
+	DW	UNUSED_STAGE_ATTR_EMPTY_LIST
+	DW	UNUSED_STAGE_ATTR_EMPTY_LIST
+
+; Empty FFh terminator pointed to by all 8 entries of UNUSED_STAGE_ATTR_PTR_TABLE
+UNUSED_STAGE_ATTR_EMPTY_LIST:
+	DB	FFh
+
+; Orphaned prototype [collision_attr, tile_id] override list A (FFh-terminated, unreferenced)
+UNUSED_PROTO_STAGE_ATTR_LIST_A:
+	DB	00h,01h,05h,70h,60h,2Eh,61h,2Fh,40h,00h,00h,C9h,FFh
+
+; Orphaned prototype [collision_attr, tile_id] override list B (FFh-terminated, unreferenced)
+UNUSED_PROTO_STAGE_ATTR_LIST_B:
+	DB	05h,02h,00h,5Ah,FFh
+	ENDIF
+
+; Process stage enemy spawn streams/queue and update all 10 active gameplay object slots
+SPAWN_AND_UPDATE_GAMEPLAY_OBJECTS:
+	CALL	UPDATE_STAGE_OBJECTS
+
+; Iterate active gameplay (D700h) and auxiliary (DC00h) object slots and dispatch per-type
+; update handlers
+UPDATE_ALL_GAMEPLAY_AND_AUX_OBJECTS:
+	LD	IX,GAMEPLAY_OBJECT_TABLE
+	LD	B,0Ah
+
+.loc_6822:
+	LD	A,(IX+OBJ_TYPE)
+	AND	A
+	JR	Z,.loc_685a
+	PUSH	BC
+	LD	A,(SCREEN_WIPE_ACTIVE_FLAG)
+	AND	A
+	CALL	NZ,LAUNCH_ENEMY_BY_SCREEN_WIPE_ITEM
+	PUSH	IX
+	CALL	DISPATCH_GAMEPLAY_OBJECT_UPDATE
+	POP	IX
+	BIT	00h,(IX+OBJ_ACCEL_ENABLE)
+	CALL	NZ,APPLY_OBJECT_XY_ACCELERATION
+	BIT	00h,(IX+OBJ_ANIM_TIMER)
+	CALL	NZ,INTEGRATE_OBJECT_XY_VELOCITY
+	CALL	UPDATE_OBJECT_VISIBILITY_COLORS
+	BIT	00h,(IX+OBJ_BOSS_HIT_FLAG)
+	CALL	NZ,SYNC_PREV_OBJECT_SLOT_XY_FROM_IX
+	LD	A,(IX+OBJ_HIT_REACTION)
+	AND	A
+	CALL	NZ,PROCESS_OBJECT_WEAPON_HIT
+	CALL	RETIRE_OFFSCREEN_OBJECT_SPRITES
+	POP	BC
+
+.loc_685a:
+	LD	DE,0080h
+	ADD	IX,DE
+	DJNZ	.loc_6822
+	RET
+
+; Copy object IX integer X and Y coordinates into the preceding object slot (IX-80h)
+SYNC_PREV_OBJECT_SLOT_XY_FROM_IX:
+	LD	A,(IX+OBJ_Y)
+	LD	(IX-OBJ_REC_SIZE+OBJ_Y),A
+	LD	A,(IX+OBJ_X)
+	LD	(IX-OBJ_REC_SIZE+OBJ_X),A
+	RET
+
+; Dispatch per-frame update handler for object IX using 1-based OBJ_TYPE via
+; GAMEPLAY_OBJ_UPDATE_HANDLER_TABLE
+DISPATCH_GAMEPLAY_OBJECT_UPDATE:
+	LD	A,(IX+OBJ_TYPE)
+	DEC	A
+	CALL	INLINE_WORD_DISPATCH
+
+; 58-entry inline DW dispatch table for gameplay/ending object update handlers (types
+; 01h-3Ah)
+GAMEPLAY_OBJ_UPDATE_HANDLER_TABLE:
+	DW	OBJ_UPDATE_TYPE_01	; [00h]
+	DW	OBJ_UPDATE_TYPE_02	; [01h]
+	DW	OBJ_UPDATE_TYPE_03	; [02h]
+	DW	OBJ_UPDATE_TYPE_04	; [03h]
+	DW	OBJ_UPDATE_TYPE_05	; [04h]
+	DW	OBJ_UPDATE_TYPE_06	; [05h]
+	DW	OBJ_UPDATE_TYPE_07	; [06h]
+	DW	OBJ_UPDATE_TYPE_08	; [07h]
+	DW	OBJ_UPDATE_TYPE_09	; [08h]
+	DW	OBJ_UPDATE_TYPE_0A	; [09h]
+	DW	OBJ_UPDATE_TYPE_0B	; [0Ah]
+	DW	OBJ_UPDATE_TYPE_0C	; [0Bh]
+	DW	OBJ_UPDATE_TYPE_0D	; [0Ch]
+	DW	OBJ_UPDATE_TYPE_0E	; [0Dh]
+	DW	OBJ_UPDATE_TYPE_0F	; [0Eh]
+	DW	OBJ_UPDATE_TYPE_10	; [0Fh]
+	DW	OBJ_UPDATE_TYPE_11	; [10h]
+	DW	OBJ_UPDATE_TYPE_12	; [11h]
+	DW	OBJ_UPDATE_TYPE_13	; [12h]
+	DW	OBJ_UPDATE_TYPE_14	; [13h]
+	DW	OBJ_UPDATE_TYPE_15	; [14h]
+	DW	OBJ_UPDATE_TYPE_16	; [15h]
+	DW	OBJ_UPDATE_TYPE_17	; [16h]
+	DW	OBJ_UPDATE_TYPE_18	; [17h]
+	DW	OBJ_UPDATE_TYPE_18	; [18h]
+	DW	OBJ_UPDATE_TYPE_1A	; [19h]
+	DW	OBJ_UPDATE_TYPE_1B	; [1Ah]
+	DW	OBJ_UPDATE_TYPE_1C	; [1Bh]
+	DW	OBJ_UPDATE_TYPE_1D	; [1Ch]
+	DW	OBJ_UPDATE_TYPE_1E	; [1Dh]
+	DW	OBJ_UPDATE_TYPE_1F	; [1Eh]
+	DW	OBJ_UPDATE_TYPE_20	; [1Fh]
+	DW	OBJ_UPDATE_TYPE_21	; [20h]
+	DW	OBJ_UPDATE_TYPE_22	; [21h]
+	DW	OBJ_UPDATE_TYPE_23	; [22h]
+	DW	OBJ_UPDATE_TYPE_24	; [23h]
+	DW	OBJ_UPDATE_TYPE_25	; [24h]
+	DW	OBJ_UPDATE_TYPE_26	; [25h]
+	DW	OBJ_UPDATE_TYPE_27	; [26h]
+	DW	OBJ_UPDATE_TYPE_28	; [27h]
+	DW	OBJ_UPDATE_TYPE_29	; [28h]
+	DW	OBJ_UPDATE_TYPE_2A	; [29h]
+	DW	OBJ_UPDATE_TYPE_2B	; [2Ah]
+	DW	OBJ_UPDATE_TYPE_2C	; [2Bh]
+	DW	OBJ_UPDATE_TYPE_2D	; [2Ch]
+	DW	OBJ_UPDATE_TYPE_2D	; [2Dh]
+	DW	OBJ_UPDATE_TYPE_2F	; [2Eh]
+	DW	OBJ_UPDATE_TYPE_30	; [2Fh]
+	DW	UPDATE_ENDING_OBJ31	; [30h]
+	DW	UPDATE_ENDING_OBJ32	; [31h]
+	DW	UPDATE_ENDING_OBJ33	; [32h]
+	DW	OBJ_UPDATE_TYPE_34	; [33h]
+	DW	OBJ_UPDATE_TYPE_34	; [34h]
+	DW	OBJ_UPDATE_TYPE_34	; [35h]
+	DW	OBJ_UPDATE_TYPE_34	; [36h]
+	DW	OBJ_UPDATE_TYPE_34	; [37h]
+	DW	OBJ_UPDATE_TYPE_34	; [38h]
+	DW	OBJ_UPDATE_TYPE_3A	; [39h]
+
+; Per-frame update handler for runtime gameplay object type 34h
+OBJ_UPDATE_TYPE_34:
+	LD	A,(BOSS_INVULN_OR_FLASH)
+	AND	A
+	LD	B,02h
+	JR	Z,.loc_68f3
+	INC	B
+
+.loc_68f3:
+	LD	(IX+OBJ_COLLISION_CLASS),B
+	RET
+
+; Add object IX 16-bit 8.8 X and Y acceleration fields to its 8.8 X and Y velocity fields
+APPLY_OBJECT_XY_ACCELERATION:
+	LD	E,(IX+OBJ_ACCEL_Y_LO)
+	LD	D,(IX+OBJ_ACCEL_Y_HI)
+	LD	L,(IX+OBJ_VEL_Y_LO)
+	LD	H,(IX+OBJ_VEL_Y_HI)
+	ADD	HL,DE
+	LD	(IX+OBJ_VEL_Y_LO),L
+	LD	(IX+OBJ_VEL_Y_HI),H
+	LD	E,(IX+OBJ_ACCEL_X_LO)
+	LD	D,(IX+OBJ_ACCEL_X_HI)
+	LD	L,(IX+OBJ_VEL_X_LO)
+	LD	H,(IX+OBJ_VEL_X_HI)
+	ADD	HL,DE
+	LD	(IX+OBJ_VEL_X_LO),L
+	LD	(IX+OBJ_VEL_X_HI),H
+	RET
+
+; Add object IX 16-bit 8.8 X and Y velocities into its subpixel and pixel X/Y coordinates
+INTEGRATE_OBJECT_XY_VELOCITY:
+	LD	E,(IX+OBJ_VEL_Y_LO)
+	LD	D,(IX+OBJ_VEL_Y_HI)
+	LD	L,(IX+OBJ_Y_FRAC)
+	LD	H,(IX+OBJ_Y)
+	ADD	HL,DE
+	LD	(IX+OBJ_Y_FRAC),L
+	LD	(IX+OBJ_Y),H
+	LD	E,(IX+OBJ_VEL_X_LO)
+	LD	D,(IX+OBJ_VEL_X_HI)
+
+; Add 16-bit signed 8.8 delta DE to object IX X position (OBJ_X_FRAC/OBJ_X)
+ADD_DE_TO_OBJECT_X_POS:
+	LD	L,(IX+OBJ_X_FRAC)
+	LD	H,(IX+OBJ_X)
+	ADD	HL,DE
+	LD	(IX+OBJ_X_FRAC),L
+	LD	(IX+OBJ_X),H
+	RET
+
+; Apply pending weapon damage to object IX and award score, spawn drops, and start explosion
+; 2Ch on defeat
+PROCESS_OBJECT_WEAPON_HIT:
+	CALL	APPLY_DAMAGE_BITS_TO_OBJECT_HP
+	RET	NC
+	LD	A,(IX+OBJ_TYPE)
+	CP	1Bh
+	JR	NC,.loc_695e
+	ADD	A,A
+	LD	HL,ENEMY_SCORE_VALUE_WORD_TABLE
+	CALL	ADD_A_TO_HL
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	EX	DE,HL
+	CALL	ADD_HL_TO_PLAYER_SCORE_BCD
+
+.loc_695e:
+	LD	A,(IX+OBJ_TYPE)
+	CP	01h
+	LD	B,01h
+	JR	Z,.loc_697e
+	CP	0Eh
+	LD	B,04h
+	JR	Z,.loc_697e
+	CP	1Ah
+	JR	NZ,.loc_698d
+	LD	HL,DROP_CYCLE_COUNTER
+	INC	(HL)
+	LD	A,(HL)
+	AND	03h
+	JR	NZ,CONVERT_OBJECT_TO_EXPLOSION_2C
+	LD	A,01h
+	JR	.loc_6994
+
+.loc_697e:
+	LD	HL,WAVE_SPAWN_WORK_ARRAY
+	LD	A,(IX+OBJ_EXTENT_Y)
+	AND	A
+	JR	NZ,CONVERT_OBJECT_TO_EXPLOSION_2C
+	DEC	(HL)
+	JR	NZ,CONVERT_OBJECT_TO_EXPLOSION_2C
+	LD	A,B
+	JR	.loc_6994
+
+.loc_698d:
+	LD	A,(IX+OBJ_EXTENT_Y)
+	AND	0Fh
+	JR	Z,CONVERT_OBJECT_TO_EXPLOSION_2C
+
+.loc_6994:
+	LD	D,(IX+OBJ_X)
+	LD	E,(IX+OBJ_Y)
+	CALL	SPAWN_ITEM_DROP_OR_FALLBACK_AT_DE
+
+; Release old SAT sprites on IX and reinitialize the slot as two-sprite explosion object
+; type 2Ch
+CONVERT_OBJECT_TO_EXPLOSION_2C:
+	CALL	DEACTIVATE_OBJECT_IX_AND_SPRITES
+	LD	(IX+OBJ_TYPE),2Ch
+	LD	(IX+OBJ_PHASE),00h
+	LD	(IX+OBJ_PART0_FLAGS),02h
+	LD	(IX+OBJ_PART0_SPRITE_LO),0Ah
+	LD	(IX+OBJ_PART1_DX),4Ch
+	PUSH	IX
+	POP	HL
+	LD	A,L
+	ADD	A,21h
+	LD	L,A
+	LD	B,02h
+
+.loc_69bd:
+	LD	A,(HL)
+	LD	DE,DYNAMIC_OBJ_SAT_BASE
+	ADD	A,E
+	LD	E,A
+	LD	A,E1h
+	LD	(DE),A
+	LD	A,L
+	ADD	A,05h
+	LD	L,A
+	DJNZ	.loc_69bd
+
+; Spawn initializer for runtime gameplay object type 2Ch
+OBJ_INIT_TYPE_2C:
+	LD	(IX+OBJ_ANIM_TIMER),00h
+	LD	(IX+OBJ_SPRITE_POSE),47h
+	LD	(IX+OBJ_ACTION_TIMER),03h
+	LD	(IX+OBJ_COLLISION_CLASS),03h
+	LD	A,(IX+OBJ_SPAWN_PERSIST)
+	AND	A
+	LD	B,12h
+	JR	Z,.loc_69ea
+	LD	B,22h
+	LD	(IX+OBJ_SPAWN_PERSIST),00h
+
+.loc_69ea:
+	LD	A,(BOSS_ENCOUNTER_ACTIVE)
+	AND	A
+	LD	A,B
+	CALL	Z,DISPATCH_SOUND_COMMAND
+	RET
+
+; Consume OBJ_HIT_REACTION damage bits against OBJ_HIT_POINTS HP and return carry set if
+; defeated
+APPLY_DAMAGE_BITS_TO_OBJECT_HP:
+	LD	A,(IX+OBJ_HIT_REACTION)
+	LD	(IX+OBJ_HIT_REACTION),00h
+	LD	B,(IX+OBJ_HIT_POINTS)
+	BIT	00h,A
+	JR	Z,.loc_6a02
+	DEC	B
+
+.loc_6a02:
+	BIT	01h,A
+	JR	Z,.loc_6a08
+	DEC	B
+	DEC	B
+
+.loc_6a08:
+	BIT	03h,A
+	JR	Z,.loc_6a0f
+	DEC	B
+	DEC	B
+	DEC	B
+
+.loc_6a0f:
+	LD	(IX+OBJ_HIT_POINTS),B
+	LD	A,B
+	INC	A
+	INC	A
+	CP	03h
+	RET
+
+; BCD/binary score reward words indexed by defeated enemy class
+ENEMY_SCORE_VALUE_WORD_TABLE:
+	DB	00h,00h,01h,00h,01h,00h
+	DB	02h,00h,0Ah,00h,02h,00h
+	DB	02h,00h,01h,00h,00h,00h
+	DB	01h,00h,02h,00h,02h,00h
+	DB	01h,00h,01h,00h,01h,00h
+	DB	0Ah,00h,02h,00h,02h,00h
+	DB	01h,00h,01h,00h,03h,00h
+	DB	00h,00h,02h,00h,02h,00h
+	DB	05h,00h,0Ah,00h,0Fh,00h
+
+; Per-frame update handler for runtime gameplay object type 2Ch
+OBJ_UPDATE_TYPE_2C:
+	DEC	(IX+OBJ_ACTION_TIMER)
+	RET	NZ
+	LD	A,(IX+OBJ_PHASE)
+	CP	03h
+	JP	NC,DEACTIVATE_OBJECT_IX_AND_SPRITES
+	RES	07h,(IX+OBJ_SPRITE_POSE)
+	INC	(IX+OBJ_SPRITE_POSE)
+	LD	A,(BOSS_ENCOUNTER_ACTIVE)
+	AND	A
+	LD	A,03h
+	JR	Z,.loc_6a6b
+	LD	A,0Ch
+
+.loc_6a6b:
+	LD	(IX+OBJ_ACTION_TIMER),A
+	INC	(IX+OBJ_PHASE)
+	RET
+
+; Despawn objects whose unsigned Y >= E3h (below the 212-line full-screen viewport, or wrapped
+; above Y=00h into E3h..FFh) or X is outside 07h..F7h, releasing their dynamic SAT slots
+RETIRE_OFFSCREEN_OBJECT_SPRITES:
+	LD	A,(IX+OBJ_Y)
+	CP	E3h
+	JR	NC,DEACTIVATE_OBJECT_IX_AND_SPRITES
+	LD	A,(IX+OBJ_X)
+	CP	F8h
+	JR	NC,DEACTIVATE_OBJECT_IX_AND_SPRITES
+	CP	07h
+	RET	NC
+
+; Clear OBJ_TYPE on object IX and park all of its allocated dynamic SAT entries at Y=E0h
+DEACTIVATE_OBJECT_IX_AND_SPRITES:
+	PUSH	IX
+	POP	HL
+
+; Zero OBJ_TYPE at (HL) and release all dynamic SAT slots owned by the record to Y=E0h
+DEACTIVATE_OBJECT_HL_AND_SPRITES:
+	LD	(HL),00h
+	SET	05h,L
+	LD	A,(HL)
+	AND	A
+	RET	Z
+	LD	B,A
+	INC	L
+
+.loc_6a8f:
+	LD	A,(HL)
+	LD	DE,DYNAMIC_OBJ_SAT_BASE
+	ADD	A,E
+	LD	E,A
+	LD	A,E0h
+	LD	(DE),A
+	LD	A,L
+	ADD	A,05h
+	LD	L,A
+	DJNZ	.loc_6a8f
+	RET
+
+; Blank object IX sprite colors while OBJ_COLLISION_MODE is zero or restore default pose
+; colors when visible
+UPDATE_OBJECT_VISIBILITY_COLORS:
+	LD	A,(IX+OBJ_COLLISION_MODE)
+	AND	A
+	LD	DE,ZERO_SPRITE_OFFSET_PAD_6AB5
+	JP	Z,SET_OBJECT_SPRITE_PART_COLORS_DE
+	LD	A,(IX+OBJ_PART0_SPRITE_LO)
+	AND	7Fh
+	RET	NZ
+	LD	DE,OBJECT_POSE_COLOR_PTR_TABLE - 02h
+	JP	LOAD_DEFAULT_OBJECT_SPRITE_COLORS
+
+; 12 zero bytes used as neutral sprite offset / padding table
+ZERO_SPRITE_OFFSET_PAD_6AB5:
+	DB	00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h,00h
+
+; Convert visible standard enemy IX into retreating type-3Ah state flying away from Gao
+; before exploding
+LAUNCH_ENEMY_BY_SCREEN_WIPE_ITEM:
+	LD	A,(BOSS_ENCOUNTER_ACTIVE)
+	AND	A
+	RET	NZ
+	LD	A,(IX+OBJ_TYPE)
+	CP	1Bh
+	RET	NC
+	LD	A,(IX+OBJ_COLLISION_MODE)
+	AND	A
+	RET	Z
+	PUSH	IX
+	POP	HL
+	LD	A,L
+	ADD	A,24h
+	LD	L,A
+	LD	E,(IX+OBJ_TYPE)
+	LD	D,CFh
+	LD	A,(DE)
+	LD	B,(IX+OBJ_PART0_FLAGS)
+
+.loc_6ae1:
+	PUSH	AF
+	ADD	A,(HL)
+	LD	(HL),A
+	POP	AF
+	LD	DE,0005h
+	ADD	HL,DE
+	DJNZ	.loc_6ae1
+	LD	(IX+OBJ_TYPE),3Ah
+	LD	(IX+OBJ_ANIM_TIMER),01h
+	LD	(IX+OBJ_ACCEL_ENABLE),00h
+	LD	(IX+OBJ_ACTION_TIMER),0Ah
+	LD	A,F0h
+	CALL	COMPUTE_RANK_SCALED_VEL_TO_GAO
+	CALL	NEGATE_DE_WORD
+	CALL	SET_OBJECT_VEL_X_FROM_DE
+	EX	DE,HL
+	CALL	NEGATE_DE_WORD
+	JP	STEP_OBJECT_XY_BY_VELOCITY
+
+; Per-frame update handler for runtime gameplay object type 3Ah
+OBJ_UPDATE_TYPE_3A:
+	DEC	(IX+OBJ_ACTION_TIMER)
+	RET	NZ
+	LD	(IX+OBJ_SPAWN_PERSIST),01h
+	JP	CONVERT_OBJECT_TO_EXPLOSION_2C
+
+; Resolve sprite pose layouts for all 8 auxiliary object records (DC00h)
+PREPARE_AUXILIARY_OBJECT_SPRITES:
+	LD	HL,AUXILIARY_OBJECT_TABLE
+	LD	B,08h
+	JR	PREPARE_OBJECT_TABLE_SPRITE_LOOP
+
+; Resolve sprite pose layouts for all 10 gameplay object records (D700h)
+PREPARE_GAMEPLAY_OBJECT_SPRITES:
+	LD	HL,GAMEPLAY_OBJECT_TABLE
+	LD	B,0Ah
+
+; Iterate B 80h-byte object records starting at HL and resolve sprite layouts for active
+; entries
+PREPARE_OBJECT_TABLE_SPRITE_LOOP:
+	PUSH	BC
+	PUSH	HL
+	LD	A,(HL)
+	AND	A
+	CALL	NZ,PREPARE_ONE_OBJECT_SPRITE_LAYOUT
+	POP	HL
+	POP	BC
+	LD	DE,0080h
+	ADD	HL,DE
+	DJNZ	PREPARE_OBJECT_TABLE_SPRITE_LOOP
+	RET
+
+; Fetch sprite layout descriptor from 9409h table and allocate dynamic SAT slots for object
+; IX
+PREPARE_ONE_OBJECT_SPRITE_LAYOUT:
+	LD	A,L
+	ADD	A,10h
+	LD	L,A
+	LD	A,(HL)
+	BIT	07h,A
+	RET	NZ
+	SET	07h,(HL)
+	LD	DE,OBJECT_SPRITE_LAYOUT_PTR_TABLE - 02h
+	PUSH	HL
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	POP	HL
+	LD	A,L
+	ADD	A,10h
+	LD	L,A
+	LD	B,(HL)
+	LD	A,B
+	AND	A
+	RET	Z
+	INC	L
+	INC	L
+	LD	A,(DE)
+	CP	80h
+	JR	Z,.loc_6b83
+	CP	81h
+	JR	Z,.loc_6b7d
+	CP	82h
+	JR	Z,.loc_6b77
+	CP	83h
+	JR	Z,.loc_6b71
+	LD	C,FFh
+	INC	DE
+
+.loc_6b64:
+	EX	DE,HL
+	LDI
+	LDI
+	LDI
+	EX	DE,HL
+	INC	L
+	INC	L
+	DJNZ	.loc_6b64
+	RET
+
+.loc_6b71:
+	EXX
+	LD	HL,SPRITE_LAYOUT_32X48_OFFSET_GRID
+	JR	.loc_6b87
+
+.loc_6b77:
+	EXX
+	LD	HL,SPRITE_LAYOUT_32X32_OFFSET_GRID
+	JR	.loc_6b87
+
+.loc_6b7d:
+	EXX
+	LD	HL,SPRITE_LAYOUT_16X16_OFFSET_PAIR
+	JR	.loc_6b87
+
+.loc_6b83:
+	EXX
+	LD	HL,COMMON_OBJECT_HITBOX_TABLE
+
+.loc_6b87:
+	EXX
+
+.loc_6b88:
+	EXX
+	LD	A,(HL)
+	INC	HL
+	EXX
+	LD	(HL),A
+	INC	L
+	EXX
+	LD	A,(HL)
+	INC	HL
+	EXX
+	LD	(HL),A
+	INC	L
+	INC	DE
+	LD	A,(DE)
+	LD	(HL),A
+	INC	L
+	INC	L
+	INC	L
+	DJNZ	.loc_6b88
+	RET
+
+; 13 x 4-byte [y_off, x_off, height, width] object bounding-box presets
+COMMON_OBJECT_HITBOX_TABLE:
+	DB	E1h,F8h,E1h,F8h
+	DB	F1h,F8h,F1h,F8h
+
+; Relative (dy, dx) offset pairs for 2-layer 16x16 composite object sprites (layout tag 81h)
+SPRITE_LAYOUT_16X16_OFFSET_PAIR:
+	DB	F1h,F8h,F1h,F8h
+
+; Relative (dy, dx) offset pairs for 2-layer 32x32 (8-sprite) composite objects (layout tag
+; 82h)
+SPRITE_LAYOUT_32X32_OFFSET_GRID:
+	DB	E1h,F0h,E1h,F0h
+	DB	F1h,F0h,F1h,F0h
+	DB	E1h,00h,E1h,00h
+	DB	F1h,00h,F1h,00h
+
+; Relative (dy, dx) offset pairs for 2-layer 32x48 (12-sprite) composite objects (layout tag
+; 83h)
+SPRITE_LAYOUT_32X48_OFFSET_GRID:
+	DB	D1h,F0h,D1h,F0h
+	DB	E1h,F0h,E1h,F0h
+	DB	F1h,F0h,F1h,F0h
+	DB	D1h,00h,D1h,00h
+	DB	E1h,00h,E1h,00h
+	DB	F1h,00h,F1h,00h
+
+; Materialize SAT attributes and line colors for auxiliary objects (DC00h)
+RENDER_AUXILIARY_OBJECT_SPRITES:
+	LD	HL,AUXILIARY_OBJECT_TABLE
+	LD	B,08h
+	LD	C,00h
+	JR	RENDER_OBJECT_TABLE_SPRITE_LOOP
+
+; Materialize SAT attributes and line colors for gameplay objects (D700h)
+RENDER_GAMEPLAY_OBJECT_SPRITES:
+	LD	HL,GAMEPLAY_OBJECT_TABLE
+	LD	B,0Ah
+	LD	C,01h
+
+; Iterate B 80h-byte object records from HL and write SAT attributes and line colors for
+; active slots
+RENDER_OBJECT_TABLE_SPRITE_LOOP:
+	PUSH	BC
+	PUSH	HL
+	LD	A,(HL)
+	AND	A
+	CALL	NZ,RENDER_ONE_GAMEPLAY_OBJECT
+	POP	HL
+	POP	BC
+	LD	DE,0080h
+	ADD	HL,DE
+	DJNZ	RENDER_OBJECT_TABLE_SPRITE_LOOP
+	RET
+
+; Write rotated/mirrored SAT X/Y/pattern bytes and 16-line color rows for object IX
+RENDER_ONE_GAMEPLAY_OBJECT:
+	LD	A,C
+	AND	A
+	JR	Z,.loc_6bfd
+	LD	A,(HL)
+	LD	DE,OBJECT_PRESENCE_TABLE
+	CALL	ADD_A_TO_DE
+	LD	A,(DE)
+
+.loc_6bfd:
+	LD	(SHARED_WORK_BUFFER),A
+	PUSH	HL
+	EXX
+	POP	HL
+	INC	L
+	INC	L
+	INC	L
+	EXX
+	SET	05h,L
+	LD	B,(HL)
+	LD	A,B
+	AND	A
+	RET	Z
+	INC	L
+
+.loc_6c0e:
+	PUSH	BC
+	LD	A,(HL)
+	LD	B,A
+	INC	L
+	LD	DE,DYNAMIC_OBJ_SAT_BASE
+	ADD	A,E
+	LD	E,A
+	LD	C,FFh
+	EXX
+	LD	A,(HL)
+	EXX
+	ADD	A,(HL)
+	LD	(DE),A
+	INC	L
+	INC	DE
+	EXX
+	INC	L
+	INC	L
+	LD	A,(HL)
+	DEC	L
+	DEC	L
+	EXX
+	ADD	A,(HL)
+	LD	(DE),A
+	INC	L
+	INC	DE
+	LD	A,(SHARED_WORK_BUFFER)
+	ADD	A,(HL)
+	LD	(DE),A
+	INC	L
+	INC	DE
+	LD	A,(HL)
+	AND	A
+	JR	NZ,.loc_6c3f
+	DEC	E
+	DEC	E
+	DEC	E
+	LD	A,E1h
+	LD	(DE),A
+	INC	E
+	INC	E
+	INC	E
+
+.loc_6c3f:
+	LD	A,(FORCE_SPRITE_COL_REFRESH)
+	AND	A
+	JR	Z,.loc_6c47
+	RES	07h,(HL)
+
+.loc_6c47:
+	BIT	07h,(HL)
+	JR	NZ,.loc_6c60
+	EX	DE,HL
+	LD	HL,DYNAMIC_OBJECT_SPRITE_COLORS / 02h
+	LD	A,B
+	ADD	A,A
+	LD	C,A
+	LD	B,00h
+	ADD	HL,BC
+	ADD	HL,HL
+	EX	DE,HL
+	LD	A,(HL)
+	SET	07h,(HL)
+	LD	B,10h
+
+.loc_6c5c:
+	LD	(DE),A
+	INC	E
+	DJNZ	.loc_6c5c
+
+.loc_6c60:
+	POP	BC
+	INC	L
+	DJNZ	.loc_6c0e
+	RET
+
+; Spawn a pending gameplay object requested via C4C2h-C4C5h and clear the 4-byte request
+; mailbox
+CONSUME_DEFERRED_OBJECT_SPAWN_REQ:
+	LD	A,(SPRITE_COL_PATCH_COUNT)
+	OR	A
+	RET	Z
+	LD	C,A
+	LD	DE,(SPRITE_COL_PATCH_ADDR)
+	LD	A,(SPRITE_COL_PATCH_VALUE)
+	LD	B,A
+	LD	HL,0000h
+	LD	(SPRITE_COL_PATCH_COUNT),HL
+	LD	(SPRITE_COL_PATCH_HI),HL
+	JP	SPAWN_GAMEPLAY_OBJECT_WITH_PARAM_B
+
+; Check mobile/ambient spawn streams along current route row and update active gameplay
+; objects
+UPDATE_STAGE_OBJECTS:
+	CALL	CONSUME_DEFERRED_OBJECT_SPAWN_REQ
+	CALL	UPDATE_PERIODIC_AMBIENT_SPAWNERS
+	CALL	TRY_SCAN_MOBILE_SPAWN_STREAM
+	LD	A,(SPAWN_QUEUE_LOCK_FLAG)
+	AND	A
+	RET	NZ
+	LD	HL,STAGE_OBJ_SPAWN_QUEUE
+	LD	B,0Ah
+
+.loc_6c92:
+	PUSH	BC
+	PUSH	HL
+	CALL	UPDATE_ONE_STAGE_OBJECT_SLOT
+	POP	HL
+	POP	BC
+	LD	DE,0010h
+	ADD	HL,DE
+	DJNZ	.loc_6c92
+	RET
+
+; Scan the Bank 09 mobile enemy spawn stream when scrolling upward in a normal route
+; (selector < 12h)
+TRY_SCAN_MOBILE_SPAWN_STREAM:
+	LD	A,(SCROLL_DIRECTION_MODE)
+	DEC	A
+	RET	NZ
+	LD	A,(SPRITE_SET_SELECTOR)
+	CP	12h
+	RET	NC
+	EX	AF,AF'
+
+; Read Bank 09 MOBILE_OBJECT_STREAM_PTR_TABLE for current route and spawn enemies matching
+; LevelRouteRow
+SCAN_MOBILE_ENEMY_SPAWN_STREAM:
+	LD	A,09h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	EX	AF,AF'
+	LD	DE,MOBILE_OBJECT_STREAM_PTR_TABLE
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	LD	A,03h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	LD	A,(ACTIVE_ENEMY_OBJ_COUNT)
+	LD	C,A
+	ADD	A,A
+	ADD	A,C
+	CALL	ADD_A_TO_DE
+
+.loc_6cc6:
+	LD	A,09h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	CALL	READ_MOBILE_SPAWN_STREAM_RECORD
+	EXX
+	LD	A,03h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	EXX
+	RET	Z
+	LD	BC,(LEVEL_ROUTE_ROW)
+	SBC	HL,BC
+	JR	C,.loc_6cf3
+	RET	NZ
+	PUSH	DE
+	CALL	FIND_FREE_SPAWN_QUEUE_SLOT
+	POP	DE
+	RET	NZ
+	PUSH	HL
+	POP	IX
+	LD	A,(ITEM_DRAW_ICON_ID)
+	LD	(IX+OBJ_ANIM_TIMER),A
+	PUSH	DE
+	CALL	DISPATCH_STAGE_OBJECT_RECORD
+	POP	DE
+
+.loc_6cf3:
+	LD	HL,ACTIVE_ENEMY_OBJ_COUNT
+	INC	(HL)
+	INC	DE
+	JR	.loc_6cc6
+
+; Decode a 3-byte Bank 09 mobile spawn record at (DE) into 9-bit row HL, group ID, and
+; config byte
+READ_MOBILE_SPAWN_STREAM_RECORD:
+	LD	A,(DE)
+	LD	L,A
+	INC	DE
+	LD	A,(DE)
+	SRL	A
+	RET	Z
+	LD	(SHARED_WORK_BUFFER),A
+	LD	A,(DE)
+	AND	01h
+	LD	H,A
+	INC	DE
+	LD	A,(DE)
+	LD	(ITEM_DRAW_ICON_ID),A
+	SCF
+	SBC	A,A
+	RET
+
+; Locate an empty 16-byte descriptor in STAGE_OBJ_SPAWN_QUEUE (D500h) and return HL with Z
+; set
+FIND_FREE_SPAWN_QUEUE_SLOT:
+	LD	HL,STAGE_OBJ_SPAWN_QUEUE
+	LD	DE,0010h
+	LD	B,0Ah
+	XOR	A
+
+.loc_6d19:
+	CP	(HL)
+	RET	Z
+	ADD	HL,DE
+	DJNZ	.loc_6d19
+	RET
+
+; Dispatch mobile spawn group handler via STAGE_SPAWN_GROUP_HANDLER_TABLE
+DISPATCH_STAGE_OBJECT_RECORD:
+	LD	A,(SHARED_WORK_BUFFER)
+	DEC	A
+	CALL	INLINE_WORD_DISPATCH
+
+; 16-entry inline DW dispatch table for mobile enemy spawn groups (00h-0Fh)
+STAGE_SPAWN_GROUP_HANDLER_TABLE:
+	DW	SPAWN_GROUP_HANDLER_00	; [00h]
+	DW	SPAWN_GROUP_HANDLER_01	; [01h]
+	DW	SPAWN_GROUP_HANDLER_02	; [02h]
+	DW	SPAWN_GROUP_HANDLER_03	; [03h]
+	DW	SPAWN_GROUP_HANDLER_04	; [04h]
+	DW	SPAWN_GROUP_HANDLER_05	; [05h]
+	DW	SPAWN_GROUP_HANDLER_06	; [06h]
+	DW	SPAWN_GROUP_HANDLER_07	; [07h]
+	DW	SPAWN_GROUP_HANDLER_08	; [08h]
+	DW	SPAWN_GROUP_HANDLER_09	; [09h]
+	DW	SPAWN_GROUP_HANDLER_0A	; [0Ah]
+	DW	SPAWN_GROUP_HANDLER_0B	; [0Bh]
+	DW	SPAWN_GROUP_HANDLER_0C	; [0Ch]
+	DW	SPAWN_GROUP_HANDLER_0D	; [0Dh]
+	DW	SPAWN_GROUP_HANDLER_0E	; [0Eh]
+	DW	SPAWN_GROUP_HANDLER_0F	; [0Fh]
+
+; Allocate free gameplay object slot, store spawn coordinates/type, and run per-type
+; initializer
+UPDATE_ONE_STAGE_OBJECT_SLOT:
+	LD	A,(HL)
+	AND	A
+	RET	Z
+	INC	L
+	DEC	(HL)
+	RET	NZ
+	DEC	L
+	DEC	(HL)
+	INC	L
+	INC	L
+	LD	A,(HL)
+	DEC	L
+	LD	(HL),A
+	INC	L
+	INC	L
+	LD	C,(HL)
+	INC	L
+	LD	E,(HL)
+	INC	L
+	LD	D,(HL)
+	INC	L
+	LD	B,(HL)
+	LD	A,B
+	AND	A
+	JR	Z,SPAWN_GAMEPLAY_OBJECT_TYPE_A
+	JR	SPAWN_GAMEPLAY_OBJECT_WITH_PARAM_B
+
+; Find empty gameplay object slot in D700h, set OBJ_TYPE=A, and invoke
+; GAMEPLAY_OBJ_INIT_HANDLER_TABLE
+SPAWN_GAMEPLAY_OBJECT_TYPE_A:
+	XOR	A
+	LD	B,A
+
+; Allocate a free D700h slot and dynamic SAT sprites for object type C at (D, E) with
+; parameter B
+SPAWN_GAMEPLAY_OBJECT_WITH_PARAM_B:
+	LD	A,B
+	LD	(SPAWN_SCRATCH_PARAM_5),A
+	XOR	A
+	LD	(BOSS_PROJECTILE_COUNT),A
+	LD	A,C
+	LD	(SHARED_WORK_BUFFER),A
+	LD	(ITEM_DRAW_ICON_ID),DE
+	LD	HL,GAMEPLAY_OBJECT_TABLE
+	LD	DE,0080h
+	LD	B,0Ah
+	XOR	A
+
+.loc_6d7d:
+	CP	(HL)
+	JR	Z,.loc_6d84
+	ADD	HL,DE
+	DJNZ	.loc_6d7d
+	RET
+
+.loc_6d84:
+	PUSH	HL
+	POP	IX
+	LD	(ITEM_DRAW_COORD_X),HL
+	LD	A,(SHARED_WORK_BUFFER)
+	LD	HL,OBJECT_SPRITE_SLOT_BUDGET_TABLE - 01h
+	CALL	ADD_A_TO_HL
+	LD	A,(HL)
+	LD	(IX+OBJ_PART0_FLAGS),A
+	LD	C,A
+	AND	A
+	JP	Z,POPULATE_SPAWNED_GAMEPLAY_OBJECT
+	DEC	A
+	JR	Z,RESERVE_SINGLE_DYNAMIC_SPRITE_SLOT
+
+; Allocate contiguous free SAT slots from DYNAMIC_SPRITE_SLOT_CNT pool starting at SAT
+; slot 10
+RESERVE_DYNAMIC_SPRITE_SLOTS:
+	LD	DE,0000h
+	LD	HL,DYNAMIC_OBJ_SAT_BASE
+	LD	A,(DYNAMIC_SPRITE_SLOT_CNT)
+	LD	B,A
+
+.loc_6da9:
+	LD	A,(HL)
+	CP	E0h
+	JR	NZ,.loc_6ddc
+	LD	(HL),E1h
+	CALL	STORE_RESERVED_SAT_SLOT_OFFSET
+	DEC	C
+	JR	Z,POPULATE_SPAWNED_GAMEPLAY_OBJECT
+	INC	C
+	PUSH	HL
+	INC	L
+	INC	L
+	INC	L
+	INC	L
+	LD	A,(HL)
+	CP	E0h
+	POP	HL
+	JR	NZ,.loc_6ddc
+	PUSH	BC
+	LD	B,02h
+
+.loc_6dc5:
+	LD	(HL),E1h
+	CALL	STORE_RESERVED_SAT_SLOT_OFFSET
+	INC	E
+	INC	D
+	INC	D
+	INC	D
+	INC	D
+	INC	L
+	INC	L
+	INC	L
+	INC	L
+	DJNZ	.loc_6dc5
+	POP	BC
+	DEC	C
+	DEC	C
+	JR	Z,POPULATE_SPAWNED_GAMEPLAY_OBJECT
+	JR	.loc_6de4
+
+.loc_6ddc:
+	LD	A,08h
+	ADD	A,L
+	LD	L,A
+	LD	A,08h
+	ADD	A,D
+	LD	D,A
+
+.loc_6de4:
+	DEC	B
+	DJNZ	.loc_6da9
+	LD	A,(IX+OBJ_PART0_FLAGS)
+	SUB	C
+	RET	Z
+	LD	B,A
+	LD	DE,(ITEM_DRAW_COORD_X)
+	LD	A,E
+	ADD	A,21h
+	LD	E,A
+
+.loc_6df5:
+	LD	HL,DYNAMIC_OBJ_SAT_BASE
+	LD	A,(DE)
+	CALL	ADD_A_TO_HL
+	LD	(HL),E0h
+	INC	E
+	INC	E
+	INC	E
+	INC	E
+	INC	E
+	DJNZ	.loc_6df5
+	RET
+
+; Allocate one free dynamic SAT slot for a single-sprite object
+RESERVE_SINGLE_DYNAMIC_SPRITE_SLOT:
+	LD	DE,0000h
+	LD	HL,DYNAMIC_OBJ_SAT_BASE
+	LD	A,(DYNAMIC_SPRITE_SLOT_CNT)
+	LD	B,A
+
+.loc_6e10:
+	LD	A,(HL)
+	CP	E0h
+	JR	Z,.loc_6e20
+	INC	D
+	INC	D
+	INC	D
+	INC	D
+	INC	L
+	INC	L
+	INC	L
+	INC	L
+	DJNZ	.loc_6e10
+	RET
+
+.loc_6e20:
+	LD	(HL),E1h
+	CALL	STORE_RESERVED_SAT_SLOT_OFFSET
+
+; Write base coordinates, HP, extents, and pose colors into a newly allocated gameplay
+; object before type init
+POPULATE_SPAWNED_GAMEPLAY_OBJECT:
+	LD	A,01h
+	LD	(BOSS_PROJECTILE_COUNT),A
+	LD	HL,(ITEM_DRAW_COORD_X)
+	LD	A,(SHARED_WORK_BUFFER)
+	LD	(HL),A
+	XOR	A
+	INC	L
+	LD	(HL),A
+	LD	DE,(ITEM_DRAW_ICON_ID)
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	(HL),E
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	(HL),D
+	INC	L
+	LD	(HL),01h
+	LD	(IX+OBJ_ACCEL_ENABLE),A
+	LD	A,(SHARED_WORK_BUFFER)
+	LD	HL,OBJECT_INITIAL_HIT_POINTS_TABLE
+	CALL	ADD_A_TO_HL
+	LD	A,(HL)
+	LD	(IX+OBJ_HIT_POINTS),A
+	LD	(IX+OBJ_HIT_REACTION),00h
+	LD	(IX+OBJ_COLLISION_MODE),01h
+	LD	A,(SPAWN_SCRATCH_PARAM_5)
+	LD	(IX+OBJ_EXTENT_Y),A
+	LD	A,(SHARED_WORK_BUFFER)
+	LD	B,00h
+	CP	1Bh
+	JR	NC,.loc_6e71
+	LD	HL,ENEMY_DEFAULT_EXTENT_X_TABLE
+	CALL	ADD_A_TO_HL
+	LD	B,(HL)
+
+.loc_6e71:
+	LD	(IX+OBJ_EXTENT_X),B
+	LD	DE,OBJECT_POSE_COLOR_PTR_TABLE - 02h
+	CALL	LOAD_DEFAULT_OBJECT_SPRITE_COLORS
+
+; Dispatch per-type initializer for object IX via GAMEPLAY_OBJ_INIT_HANDLER_TABLE
+INITIALIZE_GAMEPLAY_OBJECT_IX:
+	LD	A,(IX+OBJ_TYPE)
+	DEC	A
+	CALL	INLINE_WORD_DISPATCH
+
+; 57-entry inline DW dispatch table for gameplay/ending object initializers (types 01h-39h)
+GAMEPLAY_OBJ_INIT_HANDLER_TABLE:
+	DW	OBJ_INIT_TYPE_01	; [00h]
+	DW	OBJ_INIT_TYPE_02	; [01h]
+	DW	OBJ_INIT_TYPE_03	; [02h]
+	DW	OBJ_INIT_TYPE_04	; [03h]
+	DW	OBJ_INIT_TYPE_05	; [04h]
+	DW	OBJ_INIT_TYPE_06	; [05h]
+	DW	OBJ_INIT_TYPE_07	; [06h]
+	DW	OBJ_INIT_TYPE_08	; [07h]
+	DW	OBJ_INIT_TYPE_09	; [08h]
+	DW	OBJ_INIT_TYPE_0A	; [09h]
+	DW	OBJ_INIT_TYPE_0B	; [0Ah]
+	DW	OBJ_INIT_TYPE_0C	; [0Bh]
+	DW	OBJ_INIT_TYPE_0D	; [0Ch]
+	DW	OBJ_INIT_TYPE_0E	; [0Dh]
+	DW	OBJ_INIT_TYPE_0F	; [0Eh]
+	DW	OBJ_INIT_TYPE_10	; [0Fh]
+	DW	OBJ_INIT_TYPE_11	; [10h]
+	DW	OBJ_INIT_TYPE_12	; [11h]
+	DW	OBJ_INIT_TYPE_13	; [12h]
+	DW	OBJ_INIT_TYPE_14	; [13h]
+	DW	OBJ_INIT_TYPE_15	; [14h]
+	DW	OBJ_INIT_TYPE_16	; [15h]
+	DW	OBJ_INIT_TYPE_17	; [16h]
+	DW	OBJ_INIT_TYPE_18	; [17h]
+	DW	OBJ_INIT_TYPE_19	; [18h]
+	DW	OBJ_INIT_TYPE_1A	; [19h]
+	DW	OBJ_INIT_TYPE_1B	; [1Ah]
+	DW	OBJ_INIT_TYPE_1C	; [1Bh]
+	DW	OBJ_INIT_TYPE_1D	; [1Ch]
+	DW	OBJ_INIT_TYPE_1E	; [1Dh]
+	DW	OBJ_INIT_TYPE_1F	; [1Eh]
+	DW	OBJ_INIT_TYPE_20	; [1Fh]
+	DW	OBJ_INIT_TYPE_21	; [20h]
+	DW	OBJ_INIT_TYPE_22	; [21h]
+	DW	OBJ_INIT_TYPE_23	; [22h]
+	DW	OBJ_INIT_TYPE_24	; [23h]
+	DW	OBJ_INIT_TYPE_25	; [24h]
+	DW	OBJ_INIT_TYPE_26	; [25h]
+	DW	OBJ_INIT_TYPE_27	; [26h]
+	DW	OBJ_INIT_TYPE_28	; [27h]
+	DW	OBJ_INIT_TYPE_29	; [28h]
+	DW	OBJ_INIT_TYPE_2A	; [29h]
+	DW	OBJ_INIT_TYPE_2B	; [2Ah]
+	DW	OBJ_INIT_TYPE_2C	; [2Bh]
+	DW	OBJ_INIT_TYPE_2D	; [2Ch]
+	DW	OBJ_INIT_TYPE_2D	; [2Dh]
+	DW	OBJ_INIT_TYPE_2F	; [2Eh]
+	DW	OBJ_INIT_TYPE_30	; [2Fh]
+	DW	INIT_ENDING_OBJ31	; [30h]
+	DW	INIT_ENDING_OBJ32	; [31h]
+	DW	INIT_ENDING_OBJ33	; [32h]
+	DW	OBJ_INIT_TYPE_34	; [33h]
+	DW	OBJ_INIT_TYPE_35	; [34h]
+	DW	OBJ_INIT_TYPE_36	; [35h]
+	DW	OBJ_INIT_TYPE_37	; [36h]
+	DW	OBJ_INIT_TYPE_38	; [37h]
+	DW	OBJ_INIT_TYPE_39	; [38h]
+
+; Look up the per-type color list in table DE using OBJ_TYPE and copy colors to object IX
+; sprite parts
+LOAD_DEFAULT_OBJECT_SPRITE_COLORS:
+	LD	A,(IX+OBJ_TYPE)
+	CALL	READ_WORD_FROM_DE_TABLE_A
+
+; Copy per-sprite line-color bytes from (DE) into object IX sprite descriptors (+25h, stride
+; 5)
+SET_OBJECT_SPRITE_PART_COLORS_DE:
+	LD	B,(IX+OBJ_PART0_FLAGS)
+	LD	A,B
+	AND	A
+	RET	Z
+	PUSH	IX
+	POP	HL
+	LD	A,L
+	ADD	A,25h
+	LD	L,A
+
+.loc_6f06:
+	LD	A,(DE)
+	LD	(HL),A
+	INC	DE
+	LD	A,L
+	ADD	A,05h
+	LD	L,A
+	DJNZ	.loc_6f06
+	RET
+
+; Record allocated SAT byte offset D into sprite part E (+21h + 5*E) of the object being
+; spawned
+STORE_RESERVED_SAT_SLOT_OFFSET:
+	PUSH	HL
+	LD	HL,(ITEM_DRAW_COORD_X)
+	LD	A,E
+	ADD	A,A
+	ADD	A,A
+	ADD	A,E
+	ADD	A,21h
+	CALL	ADD_A_TO_HL
+	LD	(HL),D
+	POP	HL
+	RET
+
+; 140-byte per-object-type dynamic sprite slot count lookup table (6F20h-6FABh)
+OBJECT_SPRITE_SLOT_BUDGET_TABLE:
+	DB	02h,02h,02h,04h,02h,02h,02h,00h,02h,02h,02h,02h,02h,02h,04h,02h
+	DB	02h,02h,02h,02h,02h,02h,02h,04h,04h,04h,08h,08h,08h,00h,0Ch,0Ch
+	DB	02h,02h,02h,04h,02h,01h,01h,01h,02h,01h,01h,02h,02h,02h,01h,01h
+	DB	04h,02h,01h,00h,00h,00h,00h,00h
+
+; 1-based per-object-type initial hit points table (80h = indestructible) loaded into
+; OBJ_HIT_POINTS
+OBJECT_INITIAL_HIT_POINTS_TABLE:
+	DB	00h,01h,01h,01h,0Ah,08h,01h,02h,80h,01h,01h,01h,01h,01h,01h,03h
+	DB	03h,03h,01h,01h,01h,03h,01h,01h,03h,07h,07h,20h,1Eh,1Eh,14h,28h
+	DB	3Ch,80h,08h,01h,06h,04h,10h,03h,03h,06h,01h,02h,80h,80h,80h,80h
+	DB	03h,80h,80h,80h,80h,80h,80h,80h,80h
+
+; 1-based default initial OBJ_EXTENT_X (+16h) parameter bytes for enemy object types 01h-1Ah
+ENEMY_DEFAULT_EXTENT_X_TABLE:
+	DB	80h,00h,02h,00h,00h,00h,02h,01h,00h,01h,02h,02h,01h,02h,00h,01h
+	DB	01h,01h,00h,01h,01h,01h,01h,01h,01h,01h,01h
+
+; 57-entry 1-based DW pointer table (6FACh-701Dh, accessed via 6FACh - 02h) to per-pose
+; sprite color rows
+OBJECT_POSE_COLOR_PTR_TABLE:
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_SPRITE_COLOR_DATA
+	DW	OBJECT_POSE_SPRITE_COLOR_DATA
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_09
+	DW	OBJECT_POSE_COLOR_ENTRY_09
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_09
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_14
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_16
+	DW	OBJECT_POSE_SPRITE_COLOR_DATA
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_1B
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_1D
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_20
+	DW	OBJECT_POSE_COLOR_ENTRY_09
+	DW	OBJECT_POSE_COLOR_ENTRY_00
+	DW	OBJECT_POSE_COLOR_ENTRY_23
+	DW	OBJECT_POSE_COLOR_ENTRY_09
+	DW	OBJECT_POSE_COLOR_ENTRY_14
+	DW	OBJECT_POSE_COLOR_ENTRY_16
+	DW	OBJECT_POSE_COLOR_ENTRY_16
+	DW	OBJECT_POSE_COLOR_ENTRY_23
+	DW	OBJECT_POSE_COLOR_ENTRY_29
+	DW	OBJECT_POSE_COLOR_ENTRY_29
+	DW	OBJECT_POSE_COLOR_ENTRY_20
+	DW	OBJECT_POSE_COLOR_ENTRY_20
+	DW	OBJECT_POSE_COLOR_ENTRY_20
+	DW	OBJECT_POSE_COLOR_ENTRY_29
+	DW	OBJECT_POSE_COLOR_ENTRY_29
+	DW	OBJECT_POSE_SPRITE_COLOR_DATA
+	DW	OBJECT_POSE_COLOR_ENTRY_31
+	DW	OBJECT_POSE_SPRITE_COLOR_DATA
+	DW	OBJECT_POSE_COLOR_ENTRY_1D
+	DW	OBJECT_POSE_COLOR_ENTRY_1D
+	DW	OBJECT_POSE_COLOR_ENTRY_1D
+	DW	OBJECT_POSE_COLOR_ENTRY_1D
+	DW	OBJECT_POSE_COLOR_ENTRY_1D
+	DW	OBJECT_POSE_COLOR_ENTRY_1D
+
+; Packed V9938 Mode-2 sprite line-color definitions referenced by
+; OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_SPRITE_COLOR_DATA:
+	DB	0Dh,4Eh,0Dh,4Eh
+
+; Entry 09h referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_09:
+	DB	0Bh,4Ch
+
+; Entry 14h referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_14:
+	DB	08h,4Fh
+
+; Entry 16h referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_16:
+	DB	07h,4Ch
+
+; Entry 00h referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_00:
+	DB	07h,4Bh,07h,4Bh,07h,4Bh,07h,4Bh,07h,4Bh,07h,4Bh
+
+; Entry 1Bh referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_1B:
+	DB	07h,4Bh,07h,4Bh,07h,4Bh,07h,4Bh,0Fh
+
+; Entry 20h referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_20:
+	DB	0Ah,4Ch
+
+; Entry 23h referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_23:
+	DB	0Ah,4Eh,0Ah,4Eh
+
+; Entry 29h referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_29:
+	DB	0Ch
+
+; Entry 31h referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_31:
+	DB	08h,05h
+
+; Entry 1Dh referenced by OBJECT_POSE_COLOR_PTR_TABLE
+OBJECT_POSE_COLOR_ENTRY_1D:
+	DB	00h
+
+; Compute clamped difficulty rank (0..0Fh) from DIFFICULTY_RANK_COUNTER and GAO_WEAPON_FORM
+; into C4AAh
+UPDATE_ENEMY_AGGRESSION_RANK:
+	LD	A,(DIFFICULTY_RANK_COUNTER)
+	LD	C,A
+	LD	A,(GAO_WEAPON_FORM)
+	LD	HL,DIFFICULTY_DAMAGE_SCALE_TABLE
+	CALL	ADD_A_TO_HL
+	LD	A,(HL)
+	ADD	A,C
+	CP	0Fh
+	JR	C,.loc_705c
+	LD	A,0Fh
+
+.loc_705c:
+	LD	(COLLECTED_PIECE_FLAGS),A
+	RET
+
+; 8-byte damage/timer scaling table
+DIFFICULTY_DAMAGE_SCALE_TABLE:
+	DB	00h,02h,03h,03h,04h,04h,04h,04h
+
+; Copy a 6-byte stage spawn-group descriptor from (HL) into spawn queue record IX
+COPY_SPAWN_GROUP_DESC_TO_IX:
+	LD	BC,0006h
+	PUSH	IX
+	POP	DE
+	LDIR
+	RET
+
+; Copy 11-byte velocity/acceleration/HP/score template from (HL) into object IX
+COPY_OBJECT_KINEMATIC_PARAMS_HL:
+	LD	BC,000Bh
+	PUSH	IX
+	POP	DE
+	LD	A,E
+	ADD	A,07h
+	LD	E,A
+	LDIR
+	RET
+
+; Copy 4-byte hitbox offsets from (HL) to IX+70h..+73h and set OBJ_COLLISION_CLASS (+74h) to
+; 03h (disabled)
+SET_INTANGIBLE_OBJECT_HITBOX_HL:
+	LD	A,03h
+	JR	WRITE_OBJECT_HITBOX_AND_CLASS_A
+
+; Copy 4-byte bounding-box offsets [y_off, x_off, h, w] from (HL) into object IX
+SET_OBJECT_HITBOX_FROM_HL:
+	XOR	A
+
+; Copy 4-byte hitbox bounds from (HL) to IX+70h..+73h and store collision class A at IX+74h
+WRITE_OBJECT_HITBOX_AND_CLASS_A:
+	EX	AF,AF'
+	PUSH	IX
+	POP	DE
+	LD	A,70h
+	ADD	A,E
+	LD	E,A
+	LD	BC,0004h
+	LDIR
+	EX	AF,AF'
+	LD	(DE),A
+	RET
+
+; Two's-complement negate object IX 16-bit 8.8 Y velocity (IX+07h..+08h)
+NEGATE_OBJECT_VEL_Y:
+	LD	A,08h
+	JR	NEGATE_OBJECT_WORD_AT_OFFSET_A
+
+; Two's-complement negate object IX 16-bit 8.8 X velocity (IX+09h..+0Ah)
+NEGATE_OBJECT_VEL_X:
+	LD	A,0Ah
+	JR	NEGATE_OBJECT_WORD_AT_OFFSET_A
+
+; Two's-complement negate object IX 16-bit 8.8 Y acceleration (IX+0Ch..+0Dh)
+NEGATE_OBJECT_ACCEL_Y:
+	LD	A,0Dh
+	JR	NEGATE_OBJECT_WORD_AT_OFFSET_A
+
+; Two's-complement negate object IX 16-bit 8.8 X acceleration (IX+0Eh..+0Fh)
+NEGATE_OBJECT_ACCEL_X:
+	LD	A,0Fh
+
+; Negate the 16-bit signed field in object IX whose high byte is at offset A
+NEGATE_OBJECT_WORD_AT_OFFSET_A:
+	PUSH	IX
+	POP	HL
+	CALL	ADD_A_TO_HL
+	LD	D,(HL)
+	DEC	HL
+	LD	E,(HL)
+	CALL	NEGATE_DE_WORD
+	LD	(HL),E
+	INC	HL
+	LD	(HL),D
+	RET
+
+; Return absolute vertical pixel distance |GAO_POS_Y - IX+OBJ_Y| in A
+GET_ABS_GAO_TO_OBJECT_DY:
+	LD	A,(GAO_POS_Y)
+	SUB	(IX+OBJ_Y)
+	RET	NC
+	NEG
+	RET
+
+; Return absolute horizontal pixel distance |GAO_POS_X - IX+OBJ_X| in A
+GET_ABS_GAO_TO_OBJECT_DX:
+	LD	A,(GAO_POS_X)
+	SUB	(IX+OBJ_X)
+	RET	NC
+	NEG
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced 16-bit two's-complement negation of HL
+UNUSED_NEGATE_HL_16BIT:
+	LD	A,H
+	CPL
+	LD	H,A
+	LD	A,L
+	CPL
+	LD	L,A
+	INC	HL
+	RET
+	ENDIF
+
+; Compare GAO_POS_Y against object IX OBJ_Y and return flags (carry set if Gao is above IX)
+COMPARE_GAO_Y_WITH_OBJECT_Y:
+	LD	A,(GAO_POS_Y)
+	CP	(IX+OBJ_Y)
+	RET
+
+; Compare GAO_POS_X against object IX OBJ_X and return flags (carry set if Gao is left of
+; IX)
+COMPARE_GAO_X_WITH_OBJECT_X:
+	LD	A,(GAO_POS_X)
+	CP	(IX+OBJ_X)
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced helper adding a random signed offset (-15..+15) to (IX+OBJ_X)
+UNUSED_JITTER_OBJECT_X_RANDOM:
+	CALL	NEXT_PSEUDO_RANDOM_BYTE
+	AND	8Fh
+	BIT	07h,A
+	JR	Z,.loc_70e8
+	RES	07h,A
+	NEG
+
+.loc_70e8:
+	ADD	A,(IX+OBJ_X)
+	LD	(IX+OBJ_X),A
+	RET
+	ENDIF
+
+; Increment OBJ_ANIM_CYCLE_CNT and alternate OBJ_SPRITE_POSE between B and B+1 using bitmask
+; C
+TOGGLE_OBJECT_TWO_FRAME_POSE:
+	INC	(IX+OBJ_ANIM_CYCLE_CNT)
+	LD	A,(IX+OBJ_ANIM_CYCLE_CNT)
+	AND	C
+	JR	Z,.loc_70f9
+	INC	B
+
+.loc_70f9:
+	LD	(IX+OBJ_SPRITE_POSE),B
+	RET
+
+; Tick OBJ_ANIM_TIMER and step object IX through cyclic pose list at (DE)
+ADVANCE_CYCLIC_OBJECT_ANIMATION:
+	INC	(IX+OBJ_ANIM_CYCLE_CNT)
+	LD	A,(IX+OBJ_ANIM_CYCLE_CNT)
+	AND	B
+	JP	Z,SET_OBJECT_SPRITE_PART_COLORS_DE
+	LD	DE,OBJECT_POSE_COLOR_PTR_TABLE - 02h
+	JP	LOAD_DEFAULT_OBJECT_SPRITE_COLORS
+
+; Add VERTICAL_SCROLL_DELTA (C388h) to object IX OBJ_Y to keep it anchored to the scrolling
+; map
+APPLY_VERTICAL_SCROLL_TO_OBJECT_Y:
+	LD	A,(VERTICAL_SCROLL_DELTA)
+	ADD	A,(IX+OBJ_Y)
+	LD	(IX+OBJ_Y),A
+	RET
+
+; Reset common flags, timers, and default facing on newly spawned object IX
+INIT_STANDARD_ENEMY_DEFAULTS:
+	LD	A,(POST_WRAP_GRACE_TIMER)
+	DEC	A
+	CP	20h
+	RET	NC
+	LD	BC,4020h
+
+; Deactivate object IX immediately if it spawned within vertical distance B and horizontal
+; distance C of Gao
+DESPAWN_IF_WITHIN_BC_OF_GAO:
+	CALL	GET_ABS_GAO_TO_OBJECT_DY
+	CP	B
+	RET	NC
+	CALL	GET_ABS_GAO_TO_OBJECT_DX
+	CP	C
+	RET	NC
+	JP	DEACTIVATE_OBJECT_IX_AND_SPRITES
+
+; Count down OBJ_SHOT_COOLDOWN when rank C4AAh is nonzero and fire an auxiliary projectile
+; at zero
+TICK_ENEMY_SHOT_TIMER_AND_FIRE:
+	LD	A,(COLLECTED_PIECE_FLAGS)
+	AND	A
+	RET	Z
+	DEC	(IX+OBJ_SHOT_COOLDOWN)
+	RET	NZ
+	CALL	RELOAD_RANDOM_ENEMY_SHOT_TIMER
+	JP	SPAWN_DEFAULT_ENEMY_AUX_SHOT
+
+; Set OBJ_SHOT_COOLDOWN to (PRNG & 0Fh) + B - 2*rank, clamped to at least 06h frames
+RELOAD_RANDOM_ENEMY_SHOT_TIMER:
+	LD	A,(COLLECTED_PIECE_FLAGS)
+	ADD	A,A
+	LD	D,A
+	CALL	NEXT_PSEUDO_RANDOM_BYTE
+	AND	0Fh
+	ADD	A,B
+	SUB	D
+	CP	06h
+	JR	NC,.loc_714f
+	LD	A,06h
+
+.loc_714f:
+	LD	(IX+OBJ_SHOT_COOLDOWN),A
+	RET
+
+; Toggle OBJ_COLLISION_MODE every 2 frames while decrementing OBJ_ACTION_TIMER, restoring
+; 01h at zero
+BLINK_OBJECT_UNTIL_TIMER_EXPIRES:
+	LD	A,(FRAME_COUNTER)
+	AND	02h
+	LD	B,00h
+	JR	Z,.loc_715d
+	INC	B
+
+.loc_715d:
+	LD	(IX+OBJ_COLLISION_MODE),B
+	DEC	(IX+OBJ_ACTION_TIMER)
+	RET	NZ
+	LD	(IX+OBJ_COLLISION_MODE),01h
+	RET
+
+; Compute and assign 8.8 X/Y velocities on object IX aimed toward target (X=B, Y=C) at speed
+; A
+AIM_OBJECT_VELOCITY_AT_TARGET_BC:
+	LD	(SHARED_WORK_BUFFER),A
+	LD	A,B
+	LD	(AIM_TARGET_Y_TEMP),A
+	LD	A,C
+	LD	(AIM_TARGET_X_TEMP),A
+	LD	D,(IX+OBJ_X)
+	LD	E,(IX+OBJ_Y)
+	CALL	COMPUTE_AIM_ANGLE_FROM_DE
+	CALL	SCALE_AIM_ANGLE_TO_XY_VELOCITY
+	CALL	SET_OBJECT_VEL_X_FROM_DE
+	EX	DE,HL
+	JP	STEP_OBJECT_XY_BY_VELOCITY
+
+; Compute 8.8 X/Y velocities aimed from object IX toward Gao at speed A and store them on IX
+AIM_OBJECT_VELOCITY_TOWARD_GAO:
+	CALL	COMPUTE_RANK_SCALED_VEL_TO_GAO
+	CALL	SET_OBJECT_VEL_X_FROM_DE
+	EX	DE,HL
+	JP	STEP_OBJECT_XY_BY_VELOCITY
+
+; Set object IX X velocity to +DE when OBJ_X < C or -DE when OBJ_X >= B for horizontal
+; patrol
+BOUNCE_OBJECT_VEL_X_BETWEEN_C_B:
+	LD	A,(IX+OBJ_X)
+	CP	B
+	JR	NC,.loc_719c
+	CP	C
+	RET	NC
+	JP	SET_OBJECT_VEL_X_FROM_DE
+
+.loc_719c:
+	CALL	NEGATE_DE_WORD
+	JP	SET_OBJECT_VEL_X_FROM_DE
+
+; Queue sound 10h when object IX has pending weapon hit bits (0Bh) in OBJ_HIT_REACTION
+PLAY_ARMOR_RICOCHET_SFX_ON_HIT:
+	LD	A,(IX+OBJ_HIT_REACTION)
+	AND	0Bh
+	LD	A,10h
+	JP	NZ,QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+	RET
+
+; Tick scroll spawn delay counters and run periodic ambient enemy wave spawners on normal
+; routes
+UPDATE_PERIODIC_AMBIENT_SPAWNERS:
+	LD	HL,SCROLL_SPAWN_BUDGET_LO
+	LD	A,(HL)
+	AND	A
+	JR	Z,.loc_71b6
+	DEC	(HL)
+	RET
+
+.loc_71b6:
+	LD	HL,SCROLL_SPAWN_BUDGET_HI
+	LD	A,(HL)
+	AND	A
+	JR	Z,.loc_71be
+	DEC	(HL)
+
+.loc_71be:
+	LD	A,(SPRITE_SET_SELECTOR)
+	CP	12h
+	RET	NC
+	CALL	CHECK_BAND_BOUNDARY_TIMER_RESET
+
+; Read Bank 09 ROUTE_AMBIENT_HAZARD_MASK_PTR_TABLE for current vertical band and trigger
+; ambient spawners
+CHECK_AMBIENT_HAZARD_SPAWN_MASKS:
+	LD	A,09h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	LD	A,(SPRITE_SET_SELECTOR)
+	LD	DE,ROUTE_AMBIENT_HAZARD_MASK_PTR_TABLE
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	LD	A,(LEVEL_ROUTE_ROW)
+	RLCA
+	RLCA
+	RLCA
+	AND	07h
+	CALL	ADD_A_TO_DE
+	LD	A,(DE)
+	LD	C,A
+	LD	A,03h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	LD	A,C
+	RRA
+	PUSH	AF
+	CALL	C,TRY_SPAWN_AMBIENT_WAVE_BIT0
+	POP	AF
+	RRA
+	PUSH	AF
+	CALL	C,TRY_SPAWN_AMBIENT_WAVE_BIT1
+	POP	AF
+	RRA
+	PUSH	AF
+	CALL	C,TRY_SPAWN_AMBIENT_WAVE_BIT2
+	POP	AF
+	RRA
+	PUSH	AF
+	CALL	C,TRY_SPAWN_AMBIENT_WAVE_BIT3
+	POP	AF
+	RRA
+	PUSH	AF
+	CALL	C,TRY_SPAWN_AMBIENT_WAVE_BIT4
+	POP	AF
+	RRA
+	JR	C,TRY_SPAWN_AMBIENT_WAVE_BIT5
+	RET
+
+; Tick timer D430h and queue ambient 4-enemy type-01h wave opposite Gao's screen half
+TRY_SPAWN_AMBIENT_WAVE_BIT0:
+	LD	HL,RANDOM_SPAWN_TIMERS_BASE
+	LD	DE,AMBIENT_HAZARD_SPAWN_PARAM_TABLE
+
+; Queue a 64h-period enemy wave on the side opposite Gao and initialize its
+; WAVE_SPAWN_WORK_ARRAY counter
+QUEUE_TRACKED_SIDE_WAVE_SPAWN:
+	LD	(SHARED_WORK_BUFFER),DE
+	LD	C,64h
+	CALL	TICK_AMBIENT_TIMER_AND_ENQUEUE
+	RET	NZ
+	LD	A,(GAO_POS_X)
+	CP	80h
+	LD	A,30h
+	JR	NC,.loc_7225
+	LD	A,D0h
+
+.loc_7225:
+	LD	(DE),A
+	LD	HL,WAVE_SPAWN_SLOT_CURSOR
+	LD	A,(HL)
+	INC	(HL)
+	AND	03h
+	INC	DE
+	LD	(DE),A
+	LD	HL,WAVE_SPAWN_WORK_ARRAY
+	CALL	ADD_A_TO_HL
+	LD	DE,(SHARED_WORK_BUFFER)
+	LD	A,(DE)
+	LD	(HL),A
+	RET
+
+; Tick timer D431h (period F0h) to queue ambient type-09h wave with X cycled by
+; WAVE_VARIANT_COUNTER_A
+TRY_SPAWN_AMBIENT_WAVE_BIT1:
+	LD	HL,RANDOM_SPAWN_TIMER_1
+	LD	DE,AMBIENT_WAVE_BIT1_TYPE09_PARAMS
+	LD	C,F0h
+	CALL	TICK_AMBIENT_TIMER_AND_ENQUEUE
+	RET	NZ
+	LD	HL,WAVE_VARIANT_COUNTER_A
+
+; Advance 2-bit counter (HL) and store the selected cycled X coordinate into queued spawn X
+; (DE)
+SET_CYCLED_WAVE_SPAWN_X_AT_DE:
+	INC	(HL)
+	LD	A,(HL)
+	AND	03h
+	LD	HL,AMBIENT_WAVE_SPAWN_X_CYCLE_LUT
+	CALL	ADD_A_TO_HL
+	LD	A,(HL)
+	LD	(DE),A
+	RET
+
+; Tick timer D432h and queue ambient 4-enemy type-0Eh wave from bottom Y=DBh via tracked
+; side spawner
+TRY_SPAWN_AMBIENT_WAVE_BIT2:
+	LD	HL,RANDOM_SPAWN_TIMER_2
+	LD	DE,AMBIENT_WAVE_BIT2_TYPE0E_PARAMS
+	JR	QUEUE_TRACKED_SIDE_WAVE_SPAWN
+
+; Tick timer D433h (period 40h) to queue ambient 5-object type-12h hazard wave
+TRY_SPAWN_AMBIENT_WAVE_BIT3:
+	LD	HL,RANDOM_SPAWN_TIMER_3
+	LD	DE,AMBIENT_WAVE_BIT3_TYPE12_PARAMS
+	LD	C,40h
+	JR	TICK_AMBIENT_TIMER_AND_ENQUEUE
+
+; Tick timer D434h (period 40h) to queue ambient type-13h wave with X cycled by
+; WAVE_VARIANT_COUNTER_B
+TRY_SPAWN_AMBIENT_WAVE_BIT4:
+	LD	HL,RANDOM_SPAWN_TIMER_4
+	LD	DE,AMBIENT_WAVE_BIT4_TYPE13_PARAMS
+	LD	C,40h
+	CALL	TICK_AMBIENT_TIMER_AND_ENQUEUE
+	RET	NZ
+	LD	HL,WAVE_VARIANT_COUNTER_B
+	JP	SET_CYCLED_WAVE_SPAWN_X_AT_DE
+
+; Tick timer D435h (period 40h) to queue ambient type-14h wave at Y=DBh and play sound 19h
+TRY_SPAWN_AMBIENT_WAVE_BIT5:
+	LD	HL,RANDOM_SPAWN_TIMER_5
+	LD	DE,AMBIENT_WAVE_BIT5_TYPE14_PARAMS
+	LD	C,40h
+	CALL	TICK_AMBIENT_TIMER_AND_ENQUEUE
+	RET	NZ
+	LD	A,19h
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; Decrement wave timer (HL), reload C - 2*rank at zero, and copy 7-byte spawn template DE
+; into D500h
+TICK_AMBIENT_TIMER_AND_ENQUEUE:
+	DEC	(HL)
+	RET	NZ
+	LD	A,(COLLECTED_PIECE_FLAGS)
+	ADD	A,A
+	SUB	C
+	NEG
+	LD	(HL),A
+	PUSH	DE
+	CALL	FIND_FREE_SPAWN_QUEUE_SLOT
+	POP	DE
+	RET	NZ
+	EX	DE,HL
+	LD	BC,0007h
+	LDIR
+	DEC	DE
+	DEC	DE
+	XOR	A
+	RET
+
+; Reset all six ambient wave timers to 20h whenever upward scroll crosses a 32-row route
+; boundary
+CHECK_BAND_BOUNDARY_TIMER_RESET:
+	LD	A,(SCROLL_DIRECTION_MODE)
+	DEC	A
+	RET	NZ
+	LD	A,(LEVEL_ROUTE_ROW)
+	AND	1Fh
+	RET	NZ
+
+; Initialize all six periodic ambient wave timers at D430h-D435h to 20h frames
+RESET_AMBIENT_SPAWN_TIMERS_20H:
+	LD	HL,RANDOM_SPAWN_TIMERS_BASE
+	LD	B,06h
+
+.loc_72b7:
+	LD	(HL),20h
+	INC	HL
+	DJNZ	.loc_72b7
+	RET
+
+; Ambient route hazard spawn parameter records (72BDh-72EAh)
+AMBIENT_HAZARD_SPAWN_PARAM_TABLE:
+	DB	04h,01h,0Ah,01h,00h,00h,00h
+
+; 7-byte spawn queue template for ambient hazard bit 1 (4 objects of type 09h, 8-frame
+; interval)
+AMBIENT_WAVE_BIT1_TYPE09_PARAMS:
+	DB	04h,01h,08h,09h,00h,00h,00h
+
+; 7-byte spawn queue template for ambient hazard bit 2 (4 objects of type 0Eh from Y=DBh)
+AMBIENT_WAVE_BIT2_TYPE0E_PARAMS:
+	DB	04h,01h,06h,0Eh,DBh,00h,00h
+
+; 7-byte spawn queue template for ambient hazard bit 3 (5 objects of type 12h, 4-frame
+; interval)
+AMBIENT_WAVE_BIT3_TYPE12_PARAMS:
+	DB	05h,01h,04h,12h,00h,00h,00h
+
+; 7-byte spawn queue template for ambient hazard bit 4 (5 objects of type 13h, 4-frame
+; interval)
+AMBIENT_WAVE_BIT4_TYPE13_PARAMS:
+	DB	05h,01h,04h,13h,00h,00h,00h
+
+; 7-byte spawn queue template for ambient hazard bit 5 (4 objects of type 14h at Y=DBh after
+; 15h delay)
+AMBIENT_WAVE_BIT5_TYPE14_PARAMS:
+	DB	04h,15h,04h,14h,DBh,00h,00h
+
+; 4-entry horizontal spawn X coordinate table (30h, D0h, 50h, B0h) cycled by ambient wave
+; spawners
+AMBIENT_WAVE_SPAWN_X_CYCLE_LUT:
+	DB	30h,D0h,50h,B0h
+
+; Consume any scripted terrain request in CB40h or scan the Bank 09 terrain stream at
+; LEVEL_ROUTE_ROW
+POLL_TERRAIN_SPAWNS_FOR_FRAME:
+	LD	A,(TERRAIN_PARSE_WORK_WORD)
+	OR	A
+	JR	Z,.loc_7306
+	LD	(TERRAIN_SPAWN_ROW_NEXT),A
+	LD	A,(TERRAIN_PARSE_WORK_HI)
+	LD	(TERRAIN_SCROLL_PHASE),A
+	LD	HL,0000h
+	LD	(TERRAIN_PARSE_WORK_WORD),HL
+	LD	A,(TERRAIN_SPAWN_ROW_NEXT)
+	JP	ALLOCATE_AND_SETUP_TERRAIN_TYPE_A
+
+.loc_7306:
+	LD	A,(SCROLL_DIRECTION_MODE)
+	OR	A
+	RET	Z
+	CALL	PLAY_CURRENT_LEVEL_BGM
+	LD	BC,(LEVEL_ROUTE_ROW)
+	LD	A,(TERRAIN_STREAM_ENABLE)
+	LD	L,A
+	LD	H,00h
+	LD	E,A
+	LD	D,H
+	ADD	HL,HL
+	ADD	HL,DE
+
+; Scan Bank 09 terrain-object stream around LevelRouteRow and activate visible terrain
+; objects in D000h
+STREAM_TERRAIN_OBJECTS_FOR_ROW:
+	LD	DE,(TERRAIN_STREAM_PTR)
+	ADD	HL,DE
+
+; Scan Bank 09 terrain records from HL and instantiate all entries whose 9-bit trigger row
+; equals BC
+SCAN_TERRAIN_STREAM_RECORDS_AT_BC:
+	LD	A,09h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	A,(HL)
+	LD	(TERRAIN_SCROLL_PHASE),A
+	INC	HL
+	LD	A,03h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	IF	HINOTORI_ENHANCED
+	CALL	HS_CHECK_AND_SPAWN_TERRAIN_REC	; asm/enhanced/hscroll_core.asm
+	RET	Z
+	ELSE
+	CALL	COMPARE_TERRAIN_ROW_DE_WITH_BC
+	JR	C,.loc_7341
+	RET	NZ
+	PUSH	BC
+	PUSH	HL
+	CALL	DECODE_AND_SPAWN_TERRAIN_RECORD
+	POP	HL
+	POP	BC
+	ENDIF
+
+.loc_7341:
+	EXX
+	LD	HL,TERRAIN_STREAM_ENABLE
+	INC	(HL)
+	EXX
+	JR	SCAN_TERRAIN_STREAM_RECORDS_AT_BC
+
+; Iterate all 8 terrain object slots (D000h-D3FFh) and dispatch
+; TERRAIN_OBJ_UPDATE_HANDLER_TABLE
+UPDATE_ACTIVE_TERRAIN_OBJECTS:
+	IF	HINOTORI_ENHANCED = 00h
+	LD	A,C
+	ENDIF
+	LD	A,B
+	LD	(TERRAIN_SPAWN_ROW_NEXT),A
+	JR	ALLOCATE_AND_SETUP_TERRAIN_TYPE_A
+
+; Save stream index to CB4Ch, extract 6-bit terrain type from D into CB04h, and spawn the
+; terrain object
+DECODE_AND_SPAWN_TERRAIN_RECORD:
+	LD	A,(TERRAIN_STREAM_ENABLE)
+	LD	(TERRAIN_LAST_SPAWN_SLOT),A
+	DEC	HL
+	LD	A,D
+	RRCA
+	RRCA
+	AND	3Fh
+	LD	(TERRAIN_SPAWN_ROW_NEXT),A
+
+; Allocate a reserved (slots 6-7) or general (slots 0-5) terrain slot for type A and run its
+; setup handler
+ALLOCATE_AND_SETUP_TERRAIN_TYPE_A:
+	CP	20h
+	JP	NC,ALLOCATE_BLANK_TERRAIN_SLOT
+	CP	06h
+	JP	C,SPAWN_LARGE_TERRAIN_IN_HIGH_SLOTS
+	CALL	FIND_FREE_GENERAL_TERRAIN_SLOT
+	RET	NZ
+	PUSH	HL
+	POP	IX
+	LD	(IX+OBJ_TERRAIN_PARAM),B
+
+; Zero sub-part 0 header at IX+20h and dispatch the per-type terrain setup routine via
+; TERRAIN_OBJ_UPDATE_HANDLER_TABLE
+DISPATCH_TERRAIN_SPAWN_SETUP:
+	SET	05h,L
+	XOR	A
+	LD	(HL),A
+	LD	A,(TERRAIN_SPAWN_ROW_NEXT)
+	DEC	A
+	CALL	INLINE_WORD_DISPATCH
+
+; 31-entry inline DW dispatch table for terrain/structure object update handlers (types
+; 01h-1Fh)
+TERRAIN_OBJ_UPDATE_HANDLER_TABLE:
+	DW	TERRAIN_UPDATE_TYPE_01	; [00h]
+	DW	TERRAIN_UPDATE_TYPE_02	; [01h]
+	DW	TERRAIN_UPDATE_TYPE_02	; [02h]
+	DW	TERRAIN_UPDATE_TYPE_04	; [03h]
+	DW	TERRAIN_UPDATE_TYPE_05	; [04h]
+	DW	TERRAIN_UPDATE_TYPE_06	; [05h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [06h]
+	DW	TERRAIN_UPDATE_TYPE_08	; [07h]
+	DW	INIT_ENDING_TERRAIN09	; [08h]
+	DW	TERRAIN_UPDATE_TYPE_0A	; [09h]
+	DW	TERRAIN_UPDATE_TYPE_0B	; [0Ah]
+	DW	TERRAIN_UPDATE_TYPE_0C	; [0Bh]
+	DW	TERRAIN_UPDATE_TYPE_0C	; [0Ch]
+	DW	TERRAIN_UPDATE_TYPE_0C	; [0Dh]
+	DW	TERRAIN_UPDATE_TYPE_0F	; [0Eh]
+	DW	TERRAIN_UPDATE_TYPE_10	; [0Fh]
+	DW	TERRAIN_UPDATE_TYPE_07	; [10h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [11h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [12h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [13h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [14h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [15h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [16h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [17h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [18h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [19h]
+	DW	TERRAIN_UPDATE_TYPE_07	; [1Ah]
+	DW	TERRAIN_UPDATE_TYPE_07	; [1Bh]
+	DW	TERRAIN_UPDATE_TYPE_07	; [1Ch]
+	DW	TERRAIN_UPDATE_TYPE_07	; [1Dh]
+	DW	TERRAIN_UPDATE_TYPE_07	; [1Eh]
+
+; Per-frame update handler for terrain mechanism type 07h
+TERRAIN_UPDATE_TYPE_07:
+	RET
+
+; Allocate a free slot in TERRAIN_OBJECT_TABLE (0..5) and initialize a cleared terrain
+; record
+ALLOCATE_BLANK_TERRAIN_SLOT:
+	CALL	FIND_FREE_GENERAL_TERRAIN_SLOT
+	JP	RETIRE_COMPOSITE_TERRAIN_OBJECT
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced helper allocating and initializing a 4-byte STAGE_SPAWN_TRACK_TABLE entry
+UNUSED_INIT_GROUND_ITEM_TRACK_SLOT:
+	CALL	FIND_FREE_GROUND_ITEM_TRACK_SLOT
+	RET	NZ
+	LD	(HL),01h
+	INC	L
+	LD	A,(TERRAIN_SPAWN_ROW_NEXT)
+	AND	0Fh
+	LD	(HL),A
+	INC	L
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	AND	0Fh
+	SUB	18h
+	LD	(HL),A
+	INC	L
+	LD	A,(TERRAIN_SCROLL_PHASE)
+	AND	F0h
+	LD	(HL),A
+	RET
+	ENDIF
+
+; Spawn item drop A at (D, E) if below inventory capacity, or fallback pickup object 2Fh
+; when full
+SPAWN_ITEM_DROP_OR_FALLBACK_AT_DE:
+	LD	C,A
+	PUSH	DE
+	PUSH	BC
+	CALL	CHECK_ITEM_SLOT_C_BELOW_CAPACITY
+	POP	BC
+	POP	DE
+	LD	A,C
+	JR	NC,SPAWN_FALLBACK_BONUS_OBJECT_2F
+	PUSH	IX
+	CALL	CREATE_SPRITE_OR_GROUND_ITEM_DROP
+	POP	IX
+	RET
+
+; Spawn fallback pickup gameplay object type 2Fh at screen coordinates (D, E)
+SPAWN_FALLBACK_BONUS_OBJECT_2F:
+	LD	C,2Fh
+	PUSH	IX
+	CALL	SPAWN_GAMEPLAY_OBJECT_TYPE_A
+	POP	IX
+	RET
+
+; Spawn mobile pickup 2Dh/2Eh for items 06h/08h or register a grid-aligned ground item icon
+; in CC00h
+CREATE_SPRITE_OR_GROUND_ITEM_DROP:
+	CP	06h
+	JR	NZ,.loc_7407
+	LD	C,2Dh
+	JP	SPAWN_GAMEPLAY_OBJECT_TYPE_A
+
+.loc_7407:
+	CP	08h
+	LD	C,2Eh
+	JP	Z,SPAWN_GAMEPLAY_OBJECT_TYPE_A
+	PUSH	DE
+	PUSH	AF
+	CALL	VERIFY_DROP_HAS_SOLID_BACKDROP
+	POP	BC
+	POP	DE
+	RET	Z
+	PUSH	BC
+	PUSH	DE
+	CALL	FIND_FREE_GROUND_ITEM_TRACK_SLOT
+	POP	DE
+	POP	BC
+	RET	NZ
+	LD	(HL),01h
+	IF	HINOTORI_ENHANCED
+	PUSH	HL
+	LD	A,L
+	ADD	A,GITEM_X_HIGH
+	LD	L,A
+	LD	(HL),00h
+	POP	HL
+	ENDIF
+	INC	L
+	LD	(HL),B
+	INC	L
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	AND	0Fh
+	LD	C,A
+	ADD	A,E
+	AND	F8h
+	SUB	C
+	LD	(HL),A
+	INC	L
+	IF	HINOTORI_ENHANCED
+	CALL	HS_ALIGN_SCREEN_X_D	; asm/enhanced/hscroll_core.asm | page-aligned X
+	ELSE
+	LD	A,D
+	AND	F8h
+	ENDIF
+	LD	(HL),A
+	RET
+
+; Allow drops from terrain objects unconditionally or verify a non-empty 2x2 tile backdrop
+; in E000h
+VERIFY_DROP_HAS_SOLID_BACKDROP:
+	PUSH	IX
+	POP	AF
+	SUB	D0h
+	CP	04h
+	RET	C
+	CALL	MAP_SCREEN_COORDS_TO_TILE_BUFFER
+	XOR	A
+	CP	(HL)
+	RET	Z
+	INC	HL
+	CP	(HL)
+	RET	Z
+	LD	DE,0020h
+	ADD	HL,DE
+	RES	02h,H
+	CP	(HL)
+	RET	Z
+	DEC	HL
+	CP	(HL)
+	RET
+
+; Allocate reserved terrain slot 6 or 7 (D300h-D3FFh) for terrain types 01h-05h and run
+; setup
+SPAWN_LARGE_TERRAIN_IN_HIGH_SLOTS:
+	CALL	FIND_FREE_RESERVED_TERRAIN_SLOT
+	RET	NZ
+	PUSH	HL
+	POP	IX
+	LD	(IX+OBJ_TERRAIN_PARAM),B
+	JP	DISPATCH_TERRAIN_SPAWN_SETUP
+	IF	HINOTORI_ENHANCED = 00h
+
+; Instantiate the queued terrain type and assign coordinates (D, E) and OBJ_COLLISION_MODE =
+; A (called only by unreferenced SPAWN_WORK_ENTRY_AS_TERRAIN_02)
+SPAWN_TERRAIN_AT_DE_WITH_MODE_A:
+	PUSH	AF
+	PUSH	DE
+	CALL	ALLOCATE_AND_SETUP_TERRAIN_TYPE_A
+	POP	DE
+	POP	AF
+	LD	(IX+OBJ_X),D
+	LD	(IX+OBJ_Y),E
+	LD	(IX+OBJ_COLLISION_MODE),A
+	RET
+	ENDIF
+
+; Simulate 34 route rows leading up to LEVEL_ROUTE_ROW to pre-spawn and position initial
+; on-screen terrain
+PREPOPULATE_SCREEN_TERRAIN_ROWS:
+	LD	BC,(LEVEL_ROUTE_ROW)
+	LD	HL,FFDFh
+	ADD	HL,BC
+	CALL	WRAP_ROUTE_ROW_HL_MOD_C0
+	LD	B,H
+	LD	C,L
+	LD	A,22h
+
+.loc_747d:
+	OR	A
+	LD	HL,00BFh
+	SBC	HL,BC
+	JR	NC,.loc_748b
+	LD	HL,FF40h
+	ADD	HL,BC
+	LD	B,H
+	LD	C,L
+
+.loc_748b:
+	PUSH	BC
+	PUSH	AF
+	IF	HINOTORI_ENHANCED
+	CALL	HS_PREPOP_SCAN_INIT
+	ELSE
+	LD	HL,(TERRAIN_STREAM_PTR)
+	ENDIF
+	CALL	SCAN_TERRAIN_STREAM_RECORDS_AT_BC
+	CALL	ADVANCE_PREPOPULATED_TERRAIN_ROWS
+	POP	AF
+	POP	BC
+	INC	BC
+	DEC	A
+	JR	NZ,.loc_747d
+	RET
+
+; Find an empty 16-byte ground-item slot in STAGE_SPAWN_TRACK_TABLE (CC00h) and return HL
+; with Z set
+FIND_FREE_GROUND_ITEM_TRACK_SLOT:
+	LD	HL,STAGE_SPAWN_TRACK_TABLE
+	LD	DE,0010h
+	LD	B,10h
+	XOR	A
+
+.loc_74a6:
+	CP	(HL)
+	RET	Z
+	ADD	HL,DE
+	DJNZ	.loc_74a6
+	RET
+
+; Search reserved terrain object slots 6 and 7 (D300h-D3FFh) for an empty record
+FIND_FREE_RESERVED_TERRAIN_SLOT:
+	LD	HL,TERRAIN_OBJ6_RECORD
+	LD	B,02h
+	JR	SCAN_TERRAIN_SLOTS_FOR_FREE_ENTRY
+
+; Search general terrain object slots 0..5 (D000h-D2FFh) for an empty record
+FIND_FREE_GENERAL_TERRAIN_SLOT:
+	LD	B,06h
+	LD	HL,TERRAIN_OBJECT_TABLE
+
+; Scan B 80h-byte terrain records starting at HL and return Z with HL at the first empty
+; slot
+SCAN_TERRAIN_SLOTS_FOR_FREE_ENTRY:
+	LD	DE,0080h
+	XOR	A
+
+.loc_74bc:
+	CP	(HL)
+	RET	Z
+	ADD	HL,DE
+	DJNZ	.loc_74bc
+	RET
+
+; Load the route terrain stream pointer, clear terrain tables, and pre-populate initial
+; visible terrain rows
+INITIALIZE_STAGE_TERRAIN_OBJECTS:
+	CALL	INIT_ROUTE_TERRAIN_STREAM_CURSOR
+	CALL	CLEAR_TERRAIN_OBJECT_TABLE
+	CALL	PREPOPULATE_SCREEN_TERRAIN_ROWS
+	LD	HL,TERRAIN_STREAM_ENABLE
+	LD	(HL),00h
+	RET
+
+; Load Bank 09 TERRAIN_OBJECT_STREAM_PTR_TABLE entry for SPRITE_SET_SELECTOR into CB02h
+INIT_ROUTE_TERRAIN_STREAM_CURSOR:
+	LD	A,09h
+	CALL	MAP_BANK_A_INTO_PAGE3
+	LD	HL,TERRAIN_OBJECT_STREAM_PTR_TABLE
+	LD	A,(SPRITE_SET_SELECTOR)
+	CALL	READ_WORD_FROM_HL_TABLE_A
+	LD	(TERRAIN_STREAM_PTR),HL
+	LD	A,03h
+	JP	MAP_BANK_A_INTO_PAGE3	; asm/banks/bank00.asm
+
+; Clear terrain stream state and zero all 8 terrain object slots at D000h
+CLEAR_TERRAIN_OBJECT_TABLE:
+	XOR	A
+	LD	(TERRAIN_STREAM_ENABLE),A
+	LD	HL,TERRAIN_OBJECT_TABLE
+	LD	DE,0080h
+	LD	B,08h
+	CALL	CLEAR_STRIDED_RECORD_HEADERS
+	LD	HL,STAGE_SPAWN_TRACK_TABLE
+	LD	DE,0010h
+	LD	B,10h
+	CALL	CLEAR_STRIDED_RECORD_HEADERS
+	LD	HL,TERRAIN_AUX_STATE_BUF
+	LD	BC,0017h
+	JP	ZERO_RAM_BLOCK_HL_BC	; asm/banks/bank00.asm
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced helper spawning up to two queued Terrain 02 entries from STAGE_TRANSITION_WORK
+UNUSED_SPAWN_QUEUED_TERRAIN_02_ENTRIES:
+	LD	HL,STAGE_TRANSITION_WORK
+	CALL	SPAWN_WORK_ENTRY_AS_TERRAIN_02
+	CALL	SPAWN_WORK_ENTRY_AS_TERRAIN_02
+	LD	HL,STAGE_TRANSITION_WORK
+	LD	BC,0005h
+	JP	ZERO_RAM_BLOCK_HL_BC	; asm/banks/bank00.asm
+
+; Read a 3-byte [mode, y, x] entry from (HL) and spawn terrain type 02h if the mode byte is
+; nonzero
+SPAWN_WORK_ENTRY_AS_TERRAIN_02:
+	LD	A,02h
+	LD	(TERRAIN_SPAWN_ROW_NEXT),A
+	LD	A,(HL)
+	OR	A
+	RET	Z
+	INC	HL
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	PUSH	HL
+	CALL	SPAWN_TERRAIN_AT_DE_WITH_MODE_A
+	POP	HL
+	RET
+	ENDIF
+
+; Compare 9-bit terrain trigger row ((D & 01h):E) against route row BC and return Z/C flags
+COMPARE_TERRAIN_ROW_DE_WITH_BC:
+	LD	A,D
+	AND	01h
+	CP	B
+	RET	NZ
+	LD	A,E
+	CP	C
+	RET
+
+; Initialize newly spawned terrain record IX via TERRAIN_OBJ_INIT_HANDLER_TABLE
+DISPATCH_TERRAIN_OBJECT_INIT:
+	LD	HL,TERRAIN_OBJECT_TABLE
+	LD	B,08h
+
+.loc_753c:
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_7547
+	PUSH	BC
+	PUSH	HL
+	CALL	SCROLL_AND_UPDATE_ONE_TERRAIN_OBJ
+	POP	HL
+	POP	BC
+
+.loc_7547:
+	LD	DE,0080h
+	ADD	HL,DE
+	DJNZ	.loc_753c
+	RET
+
+; Apply VERTICAL_SCROLL_DELTA to terrain slot HL, retire it at Y=F0h-F3h, or dispatch its
+; per-frame handler
+SCROLL_AND_UPDATE_ONE_TERRAIN_OBJ:
+	PUSH	HL
+	POP	IX
+	LD	(IX+OBJ_TERRAIN_PARAM),B
+	EX	AF,AF'
+	LD	A,(VERTICAL_SCROLL_DELTA)
+	INC	L
+	INC	L
+	INC	L
+	ADD	A,(HL)
+	LD	(HL),A
+	SUB	F0h
+	CP	04h
+	JR	C,REWIND_HL_AND_RETIRE_TERRAIN_SLOT
+	EX	AF,AF'
+	DEC	A
+	CALL	INLINE_WORD_DISPATCH
+
+; 31-entry inline DW dispatch table for terrain/structure initializers (types 01h-1Fh)
+TERRAIN_OBJ_INIT_HANDLER_TABLE:
+	DW	TERRAIN_INIT_TYPE_01	; [00h]
+	DW	TERRAIN_INIT_TYPE_02	; [01h]
+	DW	TERRAIN_INIT_TYPE_03	; [02h]
+	DW	TERRAIN_INIT_TYPE_04	; [03h]
+	DW	TERRAIN_INIT_TYPE_05	; [04h]
+	DW	TERRAIN_INIT_TYPE_06	; [05h]
+	DW	TERRAIN_INIT_TYPE_07	; [06h]
+	DW	TERRAIN_INIT_TYPE_08	; [07h]
+	DW	UPDATE_ENDING_TERRAIN09	; [08h]
+	DW	TERRAIN_INIT_TYPE_0A	; [09h]
+	DW	TERRAIN_INIT_TYPE_0B	; [0Ah]
+	DW	TERRAIN_INIT_TYPE_0C	; [0Bh]
+	DW	TERRAIN_INIT_TYPE_0C	; [0Ch]
+	DW	TERRAIN_INIT_TYPE_0C	; [0Dh]
+	DW	TERRAIN_INIT_TYPE_0F	; [0Eh]
+	DW	TERRAIN_INIT_TYPE_0A	; [0Fh]
+	DW	TERRAIN_INIT_TYPE_07	; [10h]
+	DW	TERRAIN_INIT_TYPE_07	; [11h]
+	DW	TERRAIN_INIT_TYPE_07	; [12h]
+	DW	TERRAIN_INIT_TYPE_07	; [13h]
+	DW	TERRAIN_INIT_TYPE_07	; [14h]
+	DW	TERRAIN_INIT_TYPE_07	; [15h]
+	DW	TERRAIN_INIT_TYPE_07	; [16h]
+	DW	TERRAIN_INIT_TYPE_07	; [17h]
+	DW	TERRAIN_INIT_TYPE_07	; [18h]
+	DW	TERRAIN_INIT_TYPE_07	; [19h]
+	DW	TERRAIN_INIT_TYPE_07	; [1Ah]
+	DW	TERRAIN_INIT_TYPE_07	; [1Bh]
+	DW	TERRAIN_INIT_TYPE_07	; [1Ch]
+	DW	TERRAIN_INIT_TYPE_07	; [1Dh]
+	DW	TERRAIN_INIT_TYPE_07	; [1Eh]
+
+; Stream-activation initializer for terrain mechanism type 07h
+TERRAIN_INIT_TYPE_07:
+	RET
+
+; Step all active terrain objects downward by one 8-pixel tile row during initial screen
+; pre-population
+ADVANCE_PREPOPULATED_TERRAIN_ROWS:
+	LD	HL,TERRAIN_OBJECT_TABLE
+	LD	B,08h
+
+.loc_75ac:
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_75b7
+	PUSH	HL
+	PUSH	BC
+	CALL	STEP_TERRAIN_Y_DOWN_8PX_OR_RETIRE
+	POP	BC
+	POP	HL
+
+.loc_75b7:
+	LD	DE,0080h
+	ADD	HL,DE
+	DJNZ	.loc_75ac
+	RET
+
+; Add 08h to terrain record (HL) OBJ_Y and retire the record if Y enters offscreen range
+; F0h-F8h
+STEP_TERRAIN_Y_DOWN_8PX_OR_RETIRE:
+	LD	A,08h
+	INC	L
+	INC	L
+	INC	L
+	ADD	A,(HL)
+	LD	(HL),A
+	SUB	F0h
+	CP	09h
+	JR	C,REWIND_HL_AND_RETIRE_TERRAIN_SLOT
+	RET
+
+; Destructible shrine / statue substate 02h handler
+SHRINE_STATUE_STATE_HANDLER_02:
+	PUSH	IX
+	POP	HL
+	IF	HINOTORI_ENHANCED
+	JP	HS_RETIRE_DEFEATED_TERRAIN	; asm/enhanced/hscroll_core.asm
+	ELSE
+	JR	CLEAR_TERRAIN_SLOT_AND_CLEAN_PARTS
+	ENDIF
+
+; Adjust HL from OBJ_Y (+03h) back to record base (+00h) and retire the terrain slot
+REWIND_HL_AND_RETIRE_TERRAIN_SLOT:
+	DEC	L
+	DEC	L
+	DEC	L
+
+; Zero OBJ_TYPE at (HL) and run retirement cleanup on up to four sub-part records starting
+; at +20h
+CLEAR_TERRAIN_SLOT_AND_CLEAN_PARTS:
+	LD	(HL),00h
+	SET	05h,L
+	LD	DE,0008h
+	LD	B,04h
+
+.loc_75dd:
+	LD	A,(HL)
+	RET	Z
+	AND	40h
+	JR	Z,.loc_75ed
+	PUSH	BC
+	PUSH	HL
+	CALL	CLEANUP_SAVED_TERRAIN_CACHE_PART
+	POP	HL
+	POP	BC
+	LD	DE,0004h
+
+.loc_75ed:
+	ADD	HL,DE
+	DJNZ	.loc_75dd
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced helper decrementing TERRAIN_GATE_LOCK_FLAG (CB13h)
+UNUSED_DECREMENT_TERRAIN_GATE_LOCK:
+	LD	A,(TERRAIN_GATE_LOCK_FLAG)
+	DEC	A
+	LD	(TERRAIN_GATE_LOCK_FLAG),A
+	RET
+	ENDIF
+
+; Invoke PICKUP_CONTACT_HANDLER_09 when retiring a terrain sub-part marked with cache tag
+; 47h
+CLEANUP_SAVED_TERRAIN_CACHE_PART:
+	XOR	47h
+	AND	0Fh
+	RET	NZ
+	JP	PICKUP_CONTACT_HANDLER_09
+
+; Build player and active weapon hitboxes in EA00h and test intersections against active
+; objects
+CHECK_PLAYER_AND_WEAPON_COLLISIONS:
+	LD	HL,TERRAIN_OBJECT_TABLE
+	LD	B,08h
+
+.loc_7606:
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_7611
+	PUSH	HL
+	PUSH	BC
+	CALL	EXECUTE_PENDING_TERRAIN_VRAM_CMDS
+	POP	BC
+	POP	HL
+
+.loc_7611:
+	LD	DE,0080h
+	ADD	HL,DE
+	DJNZ	.loc_7606
+	RET
+
+; Scan the four sub-part slots (+20h..+38h) of terrain object HL and execute any command
+; with bit 7 set
+EXECUTE_PENDING_TERRAIN_VRAM_CMDS:
+	PUSH	HL
+	POP	IX
+	INC	L
+	INC	L
+	INC	L
+	LD	E,(HL)
+	INC	L
+	INC	L
+	LD	D,(HL)
+	LD	(PASSWORD_DISPLAY_HDR),DE
+	LD	DE,001Bh
+	LD	B,04h
+
+.loc_762b:
+	ADD	HL,DE
+	LD	A,(HL)
+	OR	A
+	RET	Z
+	JP	P,.loc_7639
+	PUSH	HL
+	PUSH	BC
+	CALL	DISPATCH_TERRAIN_SUBPART_COMMAND
+	POP	BC
+	POP	HL
+
+.loc_7639:
+	LD	DE,0008h
+	DJNZ	.loc_762b
+	RET
+
+; Clear trigger bit 7 on terrain sub-part (HL) and dispatch its 1-based VRAM/tilemap command
+; handler
+DISPATCH_TERRAIN_SUBPART_COMMAND:
+	AND	0Fh
+	RET	Z
+	LD	(HL),A
+	INC	HL
+	DEC	A
+	EXX
+	CALL	INLINE_WORD_DISPATCH
+
+; 12-entry inline DW dispatch table for item, feather, stone, and hazard contact handlers
+PICKUP_COLLISION_HANDLER_TABLE:
+	DW	PICKUP_CONTACT_HANDLER_00	; [00h]
+	DW	PICKUP_CONTACT_HANDLER_01	; [01h]
+	DW	PICKUP_CONTACT_HANDLER_02	; [02h]
+	DW	PICKUP_CONTACT_HANDLER_03	; [03h]
+	DW	PICKUP_CONTACT_HANDLER_04	; [04h]
+	DW	PICKUP_CONTACT_HANDLER_04	; [05h]
+	DW	PICKUP_CONTACT_HANDLER_06	; [06h]
+	DW	PICKUP_CONTACT_HANDLER_02	; [07h]
+	DW	PICKUP_CONTACT_HANDLER_08	; [08h]
+	DW	PICKUP_CONTACT_HANDLER_09	; [09h]
+	DW	PICKUP_CONTACT_HANDLER_0A	; [0Ah]
+	DW	PICKUP_CONTACT_HANDLER_0B	; [0Bh]
+
+; Player contact / pickup effect handler 00h
+PICKUP_CONTACT_HANDLER_00:
+	RET
+
+; Player contact / pickup effect handler 01h
+PICKUP_CONTACT_HANDLER_01:
+	EXX
+	PUSH	HL
+	EXX
+	CALL	GET_TERRAIN_SLOT_VRAM_CACHE_DE
+	EXX
+	POP	HL
+	PUSH	HL
+	EXX
+	PUSH	HL
+	PUSH	DE
+	EXX
+	CALL	RESOLVE_TERRAIN_SUBPART_VRAM_RECT
+	LD	A,04h
+	EX	DE,HL
+	POP	DE
+	PUSH	DE
+	PUSH	HL
+	CALL	COPY_VRAM_RECT_HMMM_WRAP_SRC_Y
+	POP	BC
+	POP	DE
+	POP	HL
+	LD	A,L
+	POP	HL
+	DEC	L
+	LD	(HL),47h
+	INC	L
+	LD	(HL),C
+	INC	L
+	LD	(HL),B
+	INC	L
+	INC	L
+	INC	L
+	LD	(HL),E
+	INC	L
+	LD	(HL),D
+	INC	L
+	LD	(HL),A
+	RET
+
+; Player contact / pickup effect handler 02h
+PICKUP_CONTACT_HANDLER_02:
+	EXX
+	CALL	RESOLVE_TERRAIN_SUBPART_VRAM_RECT
+	LD	A,01h
+	JP	COPY_TILE_RECT_BETWEEN_VRAM_PAGES	; asm/banks/bank00.asm
+
+; Player contact / pickup effect handler 03h
+PICKUP_CONTACT_HANDLER_03:
+	EXX
+	CALL	RESOLVE_TERRAIN_SUBPART_VRAM_RECT
+	LD	A,48h
+	JP	BLIT_VRAM_RECT_LMMM_WRAP_DEST_Y	; asm/banks/bank00.asm
+
+; Player contact / pickup effect handler 04h
+PICKUP_CONTACT_HANDLER_04:
+	JR	SCAN_4BYTE_RECORDS_UNTIL_LE_A
+
+; Player contact / pickup effect handler 06h
+PICKUP_CONTACT_HANDLER_06:
+	EXX
+	LD	E,(HL)
+	INC	L
+	LD	D,(HL)
+	INC	L
+	LD	C,(HL)
+	INC	L
+	LD	B,(HL)
+	INC	L
+	PUSH	DE
+	LD	E,(HL)
+	INC	L
+	LD	D,(HL)
+	INC	L
+	LD	A,(HL)
+	EX	DE,HL
+	POP	DE
+	PUSH	AF
+	LD	A,01h
+	CALL	COPY_TILE_RECT_BETWEEN_VRAM_PAGES
+	POP	AF
+	OR	80h
+	LD	L,A
+	LD	H,CBh
+	LD	(HL),00h
+	RET
+
+; Player contact / pickup effect handler 08h
+PICKUP_CONTACT_HANDLER_08:
+	RET
+
+; Player contact / pickup effect handler 09h
+PICKUP_CONTACT_HANDLER_09:
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Disabled body of PICKUP_CONTACT_HANDLER_09 (short-circuited by leading RET)
+UNUSED_CLEAR_TERRAIN_CACHE_FLAG_AT_OFFSET7:
+	LD	A,L
+	ADD	A,07h
+	LD	L,A
+	LD	L,(HL)
+	LD	H,CBh
+	LD	(HL),00h
+	RET
+	ENDIF
+
+; Player contact / pickup effect handler 0Ah
+PICKUP_CONTACT_HANDLER_0A:
+	EXX
+	CALL	RESOLVE_TERRAIN_SUBPART_VRAM_RECT
+	EX	DE,HL
+	LD	A,D
+	LD	D,00h
+	JP	BUILD_UI_BOX_TILEMAP_IN_BUFFER	; asm/banks/bank00.asm
+
+; Player contact / pickup effect handler 0Bh
+PICKUP_CONTACT_HANDLER_0B:
+	EXX
+	CALL	RESOLVE_TERRAIN_SUBPART_VRAM_RECT
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	NEG
+	ADD	A,E
+	LD	E,A
+	LD	A,B
+	RRCA
+	RRCA
+	RRCA
+	AND	1Fh
+	LD	B,A
+	LD	A,C
+	RRCA
+	RRCA
+	RRCA
+	AND	1Fh
+	LD	C,A
+	LD	A,L
+	JP	FILL_TILE_BUFFER_RECT_AT_DE
+
+; Advance HL by 4-byte strides up to B times until finding an entry where A >= (HL)
+SCAN_4BYTE_RECORDS_UNTIL_LE_A:
+	LD	DE,0004h
+
+.loc_76fb:
+	CP	(HL)
+	RET	NC
+	ADD	HL,DE
+	DJNZ	.loc_76fb
+	RET
+
+; Reserve a free 16x16 background-save slot in CB80h-CB97h and return its hidden VRAM (D, E)
+; address
+ALLOCATE_VRAM_BG_SAVE_CACHE_SLOT:
+	CALL	RESERVE_FREE_BG_CACHE_FLAG_SLOT
+	RET	NZ
+	JR	CACHE_SLOT_L_TO_VRAM_COORDS_DE
+
+; Compute the dedicated hidden-page VRAM cache coordinates (D, E) for terrain slot
+; OBJ_TERRAIN_PARAM
+GET_TERRAIN_SLOT_VRAM_CACHE_DE:
+	LD	A,(IX+OBJ_TERRAIN_PARAM)
+	LD	L,A
+
+; Convert 16x16 background-cache slot index L into hidden VRAM pixel coordinates (D, E) at
+; Y=C0h/D0h
+CACHE_SLOT_L_TO_VRAM_COORDS_DE:
+	LD	A,L
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	C,A
+	AND	F0h
+	LD	D,A
+	LD	A,C
+	AND	08h
+	ADD	A,A
+	ADD	A,C0h
+	LD	E,A
+	XOR	A
+	RET
+
+; Find a zero entry in CB80h-CB97h, mark it 01h in-use, and return HL with Z set
+RESERVE_FREE_BG_CACHE_FLAG_SLOT:
+	LD	HL,TERRAIN_PERSIST_FLAGS
+	LD	B,18h
+	XOR	A
+
+.loc_7722:
+	CP	(HL)
+	JR	Z,.loc_7729
+	DEC	HL
+	DJNZ	.loc_7722
+	RET
+
+.loc_7729:
+	LD	(HL),01h
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced 32-byte fill and strided comparison helpers
+UNUSED_FILL_32_BYTES_AND_SCAN:
+	LD	B,20h
+
+.loc_772e:
+	LD	(HL),C
+	INC	HL
+	DJNZ	.loc_772e
+	RET
+
+.loc_7733:
+	CP	(HL)
+	RET	C
+	ADD	HL,DE
+	DJNZ	.loc_7733
+	RET
+	ENDIF
+
+; Compute scroll-adjusted destination (D, E), size (B, C), and source HL from terrain
+; sub-part (HL)
+RESOLVE_TERRAIN_SUBPART_VRAM_RECT:
+	LD	A,(PASSWORD_DISPLAY_HDR)
+	ADD	A,(HL)
+	LD	E,A
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	ADD	A,E
+	LD	E,A
+	INC	L
+	LD	A,(PASSWORD_DISPLAY_HDR_Y)
+	ADD	A,(HL)
+	LD	D,A
+	INC	L
+	LD	C,(HL)
+	INC	L
+	LD	B,(HL)
+	INC	L
+	PUSH	DE
+	LD	E,(HL)
+	INC	L
+	LD	D,(HL)
+	EX	DE,HL
+	POP	DE
+	RET
+
+; Step kinematics, tile collision, and offscreen culling for all 8 auxiliary projectile
+; slots at DC00h
+UPDATE_ALL_AUXILIARY_OBJECTS:
+	LD	IX,AUXILIARY_OBJECT_TABLE
+	LD	B,08h
+
+.loc_775b:
+	LD	A,(IX+OBJ_TYPE)
+	AND	A
+	JP	Z,.loc_77f9
+	PUSH	BC
+	BIT	00h,(IX+OBJ_ACCEL_ENABLE)
+	JR	Z,.loc_778f
+	LD	E,(IX+OBJ_ACCEL_Y_LO)
+	LD	D,(IX+OBJ_ACCEL_Y_HI)
+	LD	L,(IX+OBJ_VEL_Y_LO)
+	LD	H,(IX+OBJ_VEL_Y_HI)
+	ADD	HL,DE
+	LD	(IX+OBJ_VEL_Y_LO),L
+	LD	(IX+OBJ_VEL_Y_HI),H
+	LD	E,(IX+OBJ_ACCEL_X_LO)
+	LD	D,(IX+OBJ_ACCEL_X_HI)
+	LD	L,(IX+OBJ_VEL_X_LO)
+	LD	H,(IX+OBJ_VEL_X_HI)
+	ADD	HL,DE
+	LD	(IX+OBJ_VEL_X_LO),L
+	LD	(IX+OBJ_VEL_X_HI),H
+
+.loc_778f:
+	BIT	00h,(IX+OBJ_ANIM_TIMER)
+	JR	Z,.loc_77bb
+	LD	E,(IX+OBJ_VEL_Y_LO)
+	LD	D,(IX+OBJ_VEL_Y_HI)
+	LD	L,(IX+OBJ_Y_FRAC)
+	LD	H,(IX+OBJ_Y)
+	ADD	HL,DE
+	LD	(IX+OBJ_Y_FRAC),L
+	LD	(IX+OBJ_Y),H
+	LD	E,(IX+OBJ_VEL_X_LO)
+	LD	D,(IX+OBJ_VEL_X_HI)
+	LD	L,(IX+OBJ_X_FRAC)
+	LD	H,(IX+OBJ_X)
+	ADD	HL,DE
+	LD	(IX+OBJ_X_FRAC),L
+	LD	(IX+OBJ_X),H
+
+.loc_77bb:
+	BIT	00h,(IX+OBJ_ACTION_TIMER)
+	JR	NZ,.loc_77cc
+	LD	E,(IX+OBJ_Y)
+	LD	D,(IX+OBJ_X)
+	CALL	GET_TILE_COLLISION_HIGH_CLASS
+	JR	C,.loc_77de
+
+.loc_77cc:
+	LD	A,(IX+OBJ_Y)
+	CP	DFh
+	JR	NC,.loc_77de
+	LD	A,(IX+OBJ_X)
+	CP	F8h
+	JR	NC,.loc_77de
+	CP	07h
+	JR	NC,.loc_77f8
+
+.loc_77de:
+	XOR	A
+	LD	(IX+OBJ_TYPE),A
+	PUSH	IX
+	POP	HL
+	SET	05h,L
+	LD	B,(HL)
+	INC	L
+
+.loc_77e9:
+	LD	A,(HL)
+	LD	DE,DYNAMIC_OBJ_SAT_BASE
+	ADD	A,E
+	LD	E,A
+	LD	A,E0h
+	LD	(DE),A
+	LD	A,L
+	ADD	A,05h
+	LD	L,A
+	DJNZ	.loc_77e9
+
+.loc_77f8:
+	POP	BC
+
+.loc_77f9:
+	LD	DE,0080h
+	ADD	IX,DE
+	DEC	B
+	JP	NZ,.loc_775b
+	RET
+
+; Clear SPECIAL_SPAWN_ACTIVE to enforce minimum Gao distance and spawn an auxiliary
+; projectile from IX
+SPAWN_AUX_SHOT_WITH_PROXIMITY_CHK:
+	XOR	A
+	LD	(SPECIAL_SPAWN_ACTIVE),A
+
+; Spawn an auxiliary enemy projectile at object IX coordinates using its per-type default
+; shot mode
+SPAWN_DEFAULT_ENEMY_AUX_SHOT:
+	LD	C,(IX+OBJ_Y)
+	LD	B,(IX+OBJ_X)
+	LD	A,(IX+OBJ_TYPE)
+	LD	(AUX_SPAWN_TYPE_TEMP),A
+	PUSH	AF
+	XOR	A
+	JR	VALIDATE_AND_SPAWN_AUX_PROJECTILE
+
+; Spawn auxiliary projectile mode A at (B, C) with initial 8.8 velocities Y=HL and X=DE
+SPAWN_CUSTOM_AUX_PROJECTILE_A:
+	PUSH	AF
+
+; Suppress auxiliary shots within 30h pixels of Gao unless SPECIAL_SPAWN_ACTIVE is set, then
+; allocate slot
+VALIDATE_AND_SPAWN_AUX_PROJECTILE:
+	LD	(SHARED_WORK_BUFFER),A
+	POP	AF
+	LD	(ITEM_DRAW_ICON_ID),BC
+	LD	(SPAWN_SCRATCH_PARAM_5),HL
+	LD	(AIM_VECTOR_DX_TEMP),DE
+	LD	H,A
+	LD	A,(SPECIAL_SPAWN_ACTIVE)
+	AND	A
+	JR	NZ,.loc_783d
+	LD	D,B
+	LD	E,C
+	CALL	COMPUTE_MANHATTAN_DIST_TO_GAO
+	LD	A,D
+	CP	30h
+	JP	NC,.loc_783d
+	LD	A,E
+	CP	30h
+	RET	C
+
+.loc_783d:
+	PUSH	IX
+	CALL	ALLOCATE_AND_INIT_AUX_OBJ_SLOT
+	POP	IX
+	RET
+
+; Allocate a free DC00h record and auxiliary SAT slot, write initial shot fields, and run
+; mode init
+ALLOCATE_AND_INIT_AUX_OBJ_SLOT:
+	LD	A,(SHARED_WORK_BUFFER)
+	AND	A
+	JR	NZ,.loc_7856
+	LD	A,H
+	LD	HL,ENEMY_DEFAULT_AUX_SHOT_MODE_TABLE
+	CALL	ADD_A_TO_HL
+	LD	A,(HL)
+	LD	(SHARED_WORK_BUFFER),A
+
+.loc_7856:
+	LD	HL,AUXILIARY_OBJECT_TABLE
+	LD	DE,0080h
+	LD	B,08h
+	XOR	A
+
+.loc_785f:
+	CP	(HL)
+	JR	Z,.loc_7866
+	ADD	HL,DE
+	DJNZ	.loc_785f
+	RET
+
+.loc_7866:
+	PUSH	HL
+	POP	IX
+	LD	(ITEM_DRAW_COORD_X),HL
+	LD	DE,5000h
+	LD	HL,AUX_DYNAMIC_SAT_BASE
+	LD	A,(AUX_SPRITE_SLOT_CNT)
+	LD	B,A
+
+.loc_7876:
+	LD	A,(HL)
+	CP	E0h
+	JR	Z,.loc_7886
+	DEC	D
+	DEC	D
+	DEC	D
+	DEC	D
+	DEC	L
+	DEC	L
+	DEC	L
+	DEC	L
+	DJNZ	.loc_7876
+	RET
+
+.loc_7886:
+	LD	(HL),E1h
+	CALL	STORE_RESERVED_SAT_SLOT_OFFSET
+	LD	HL,(ITEM_DRAW_COORD_X)
+	LD	A,(SHARED_WORK_BUFFER)
+	LD	(HL),A
+	XOR	A
+	INC	L
+	LD	(HL),A
+	LD	DE,(ITEM_DRAW_ICON_ID)
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	(HL),E
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	(HL),D
+	INC	L
+	LD	(HL),01h
+	INC	L
+	LD	DE,(SPAWN_SCRATCH_PARAM_5)
+	LD	(HL),E
+	INC	L
+	LD	(HL),D
+	LD	DE,(AIM_VECTOR_DX_TEMP)
+	INC	L
+	LD	(HL),E
+	INC	L
+	LD	(HL),D
+	LD	(IX+OBJ_ACCEL_ENABLE),A
+	LD	(IX+OBJ_SPRITE_POSE),3Ch
+	LD	(IX+OBJ_ACTION_TIMER),A
+	LD	(IX+OBJ_PART0_FLAGS),01h
+	LD	(IX+OBJ_PART0_SPRITE_LO),0Ah
+
+; Update object IX 16-bit X/Y position and 8.8 velocity/acceleration by movement mode
+APPLY_OBJECT_KINEMATICS_DISPATCH:
+	LD	A,(IX+OBJ_TYPE)
+	DEC	A
+	CALL	INLINE_WORD_DISPATCH
+
+; 4-entry inline DW dispatch table for object kinematic integration modes
+KINEMATIC_MOVE_MODE_TABLE:
+	DW	KINEMATIC_MODE_HANDLER_00	; [00h]
+	DW	KINEMATIC_MODE_HANDLER_01	; [01h]
+	DW	KINEMATIC_MODE_HANDLER_02	; [02h]
+	DW	KINEMATIC_MODE_HANDLER_03	; [03h]
+
+; Object kinematic integration mode 00h handler
+KINEMATIC_MODE_HANDLER_00:
+	RET
+
+; Object kinematic integration mode 01h handler
+KINEMATIC_MODE_HANDLER_01:
+	CALL	COMPUTE_DEFAULT_SHOT_VEL_TO_GAO
+	CALL	SET_OBJECT_VEL_X_FROM_DE
+	EX	DE,HL
+	JP	STEP_OBJECT_XY_BY_VELOCITY
+
+; Object kinematic integration mode 02h handler
+KINEMATIC_MODE_HANDLER_02:
+	LD	A,(SPRITE_SET_SELECTOR)
+	CP	13h
+	RET	NZ
+	LD	(IX+OBJ_ACTION_TIMER),01h
+	RET
+
+; Object kinematic integration mode 03h handler
+KINEMATIC_MODE_HANDLER_03:
+	LD	HL,KINEMATIC_GRAVITY_AND_STEP_TABLE
+	CALL	COPY_OBJECT_KINEMATIC_PARAMS_HL
+	CALL	COMPARE_GAO_X_WITH_OBJECT_X
+	JR	NC,.loc_78fd
+	NEG
+	EX	AF,AF'
+	CALL	NEGATE_OBJECT_ACCEL_X
+	EX	AF,AF'
+
+.loc_78fd:
+	CP	10h
+	RET	NC
+	LD	(IX+OBJ_ACCEL_ENABLE),00h
+	RET
+
+; Object gravity/step constants and per-type collision size bytes
+KINEMATIC_GRAVITY_AND_STEP_TABLE:
+	DB	00h,05h,00h,00h,01h,00h,00h,10h,00h,3Dh
+
+; 1-based lookup table mapping enemy OBJ_TYPE (01h-1Ah) to its default auxiliary projectile
+; mode (01h-04h)
+ENEMY_DEFAULT_AUX_SHOT_MODE_TABLE:
+	DB	00h,02h,02h,02h,02h,02h,01h,02h,02h,02h,02h,02h,02h,02h,02h,02h
+	DB	02h,02h,02h,02h,02h,02h,02h,02h,04h,04h,04h
+
+; Integrate 8.8 signed X/Y velocities (and optional 8.8 accelerations) into object IX
+; coordinates
+STEP_OBJECT_XY_BY_VELOCITY:
+	LD	(IX+OBJ_VEL_Y_LO),E
+	LD	(IX+OBJ_VEL_Y_HI),D
+	RET
+
+; Store 16-bit signed 8.8 horizontal velocity DE into object IX (OBJ_VEL_X_LO/HI)
+SET_OBJECT_VEL_X_FROM_DE:
+	LD	(IX+OBJ_VEL_X_LO),E
+	LD	(IX+OBJ_VEL_X_HI),D
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced helpers storing 16-bit DE into OBJ_ACCEL_Y and OBJ_ACCEL_X
+UNUSED_SET_OBJECT_ACCEL_Y_FROM_DE:
+	LD	(IX+OBJ_ACCEL_Y_LO),E
+	LD	(IX+OBJ_ACCEL_Y_HI),D
+	RET
+
+UNUSED_SET_OBJECT_ACCEL_X_FROM_DE:
+	LD	(IX+OBJ_ACCEL_X_LO),E
+	LD	(IX+OBJ_ACCEL_X_HI),D
+	RET
+	ENDIF
+
+; Compute 8.8 X/Y velocity vector from object IX toward Gao using default projectile speed
+; 58h
+COMPUTE_DEFAULT_SHOT_VEL_TO_GAO:
+	LD	A,58h
+
+; Add difficulty rank C4AAh to speed A (<F0h) and return 8.8 velocity vector (DE=VX, HL=VY)
+; toward Gao
+COMPUTE_RANK_SCALED_VEL_TO_GAO:
+	LD	E,(IX+OBJ_Y)
+	LD	D,(IX+OBJ_X)
+	CP	F0h
+	JR	NC,.loc_7956
+	LD	HL,COLLECTED_PIECE_FLAGS
+	ADD	A,(HL)
+
+.loc_7956:
+	LD	(SHARED_WORK_BUFFER),A
+	CALL	MEASURE_AIM_ANGLE_TOWARD_GAO
+
+; Convert angle AIM_OCTANT_FLAGS and speed (E800h) via QUARTER_WAVE_SINE_64_LUT into signed
+; VX=DE, VY=HL
+SCALE_AIM_ANGLE_TO_XY_VELOCITY:
+	LD	A,(AIM_OCTANT_FLAGS)
+	LD	E,A
+	LD	D,00h
+	IF	HINOTORI_ENHANCED
+	LD	A,3Fh
+	SUB	E
+	ELSE
+	LD	A,E
+	SUB	3Fh
+	NEG
+	ENDIF
+	LD	HL,QUARTER_WAVE_SINE_64_LUT
+	PUSH	HL
+	ADD	HL,DE
+	LD	C,(HL)
+	POP	HL
+	LD	E,A
+	ADD	HL,DE
+	LD	A,(HL)
+	LD	(AIM_VECTOR_DX_TEMP),A
+	LD	E,C
+	CALL	SCALE_TRIG_BYTE_E_BY_SPEED
+	LD	A,(ITEM_DRAW_ICON_ID)
+	AND	A
+	CALL	NZ,NEGATE_DE_WORD
+	LD	(ITEM_DRAW_COORD_X),DE
+	LD	A,(AIM_VECTOR_DX_TEMP)
+	LD	E,A
+	CALL	SCALE_TRIG_BYTE_E_BY_SPEED
+	LD	A,(ITEM_DRAW_COORD_Y)
+	AND	A
+	CALL	NZ,NEGATE_DE_WORD
+	LD	HL,(ITEM_DRAW_COORD_X)
+	RET
+
+; Latch GAO_POS_X/Y as the aiming target and compute octant signs and 0..3Fh angle from
+; origin (D, E)
+MEASURE_AIM_ANGLE_TOWARD_GAO:
+	LD	A,(GAO_POS_Y)
+	LD	(AIM_TARGET_X_TEMP),A
+	LD	A,(GAO_POS_X)
+	LD	(AIM_TARGET_Y_TEMP),A
+
+; Compute quadrant sign flags and 6-bit atan2 angle (E808h/E809h) from origin (D, E) to
+; target (E80Bh, E80Ah)
+COMPUTE_AIM_ANGLE_FROM_DE:
+	LD	HL,ITEM_DRAW_ICON_ID
+	LD	(HL),00h
+	LD	A,(AIM_TARGET_X_TEMP)
+	SUB	E
+	JR	NC,.loc_79af
+	NEG
+	INC	(HL)
+
+.loc_79af:
+	INC	HL
+	LD	(HL),00h
+	RRA
+	RRA
+	AND	38h
+	LD	E,A
+	LD	A,(AIM_TARGET_Y_TEMP)
+	SUB	D
+	JR	NC,.loc_79c0
+	NEG
+	INC	(HL)
+
+.loc_79c0:
+	RRA
+	RRA
+	RRA
+	RRA
+	RRA
+	AND	07h
+	ADD	A,E
+	LD	HL,AIMED_VECTOR_RATIO_LUT
+	CALL	ADD_A_TO_HL
+	LD	A,(HL)
+	LD	(AIM_OCTANT_FLAGS),A
+	LD	C,A
+	LD	HL,(ITEM_DRAW_ICON_ID)
+	LD	A,H
+	LD	B,00h
+	AND	A
+	JR	Z,.loc_79de
+	LD	B,80h
+
+.loc_79de:
+	CP	L
+	LD	A,C
+	JR	Z,.loc_79e4
+	NEG
+
+.loc_79e4:
+	ADD	A,B
+	LD	(AIM_SPEED_SHIFT_TEMP),A
+	RET
+
+; Two's-complement negate 16-bit signed value in DE
+NEGATE_DE_WORD:
+	LD	A,D
+	CPL
+	LD	D,A
+	LD	A,E
+	CPL
+	LD	E,A
+	INC	DE
+	RET
+
+; Multiply 8-bit sine/cosine factor E by speed (E800h) and shift into an unsigned 8.8
+; velocity component in DE
+SCALE_TRIG_BYTE_E_BY_SPEED:
+	LD	A,(SHARED_WORK_BUFFER)
+	LD	H,A
+	CALL	MULTIPLY_H_BY_E_UNSIGNED
+	XOR	A
+	ADD	HL,HL
+	ADC	A,A
+	ADD	HL,HL
+	ADC	A,A
+	ADD	HL,HL
+	ADC	A,A
+	LD	L,H
+	LD	H,A
+	EX	DE,HL
+	RET
+
+; Compute unsigned 16-bit product HL = H * E via 8-iteration shift-and-add loop
+MULTIPLY_H_BY_E_UNSIGNED:
+	LD	B,08h
+	LD	L,00h
+	LD	D,L
+
+.loc_7a08:
+	ADD	HL,HL
+	JR	NC,.loc_7a0c
+	ADD	HL,DE
+
+.loc_7a0c:
+	DJNZ	.loc_7a08
+	RET
+
+; 8x16 directional velocity ratio lookup table for aimed enemy projectiles
+AIMED_VECTOR_RATIO_LUT:
+	DB	20h,08h,04h,03h,02h,02h,01h,01h
+	DB	38h,20h,15h,0Fh,0Ch,09h,08h,07h
+	DB	3Bh,2Bh,20h,19h,14h,10h,0Eh,0Ch
+	DB	3Dh,31h,27h,20h,1Ah,16h,13h,11h
+	DB	3Dh,34h,2Ch,25h,20h,1Ch,18h,15h
+	DB	3Eh,36h,2Fh,29h,24h,20h,1Ch,19h
+	DB	3Eh,38h,32h,2Ch,28h,23h,20h,1Dh
+	DB	3Eh,39h,34h,2Fh,2Ah,26h,23h,20h
+
+; 64-entry unsigned quarter-wave sine lookup table (00h..FFh) for projectile aiming and
+; circular motion
+QUARTER_WAVE_SINE_64_LUT:
+	DB	00h,06h,0Ch,12h,19h,1Fh,26h,2Ch
+	DB	32h,38h,3Eh,44h,4Ah,50h,56h,5Ch
+	DB	62h,68h,6Dh,73h,79h,7Eh,84h,89h
+	DB	8Eh,93h,99h,9Eh,A2h,A7h,ACh,B1h
+	DB	B5h,B9h,BEh,C2h,C6h,CAh,CEh,D1h
+	DB	D5h,D8h,DCh,DFh,E2h,E5h,E7h,EAh
+	DB	EDh,EFh,F1h,F3h,F5h,F7h,F8h,FAh
+	DB	FBh,FCh,FDh,FEh,FEh,FFh,FFh,FFh
+
+; Compute 8.8 directional velocity vector from object IX toward Gao using division LUT at
+; 7A0Fh
+COMPUTE_AIMED_VELOCITY_TOWARD_GAO:
+	LD	A,(SPRITE_SET_SELECTOR)
+	ADD	A,A
+	LD	HL,TERRAIN_HITBOX_DIMENSION_TABLE
+	CALL	ADD_A_TO_HL
+	LD	A,(HL)
+	LD	(DYNAMIC_SPRITE_SLOT_CNT),A
+	INC	HL
+	LD	A,(HL)
+	LD	(AUX_SPRITE_SLOT_CNT),A
+	RET
+
+; 24 x 2-byte [width, height] terrain/pickup bounding dimensions
+TERRAIN_HITBOX_DIMENSION_TABLE:
+	DB	10h,08h,10h,08h,10h,08h,10h,08h
+	DB	10h,08h,10h,08h,10h,08h,10h,08h
+	DB	10h,08h,10h,08h,10h,08h,10h,08h
+	DB	10h,08h,10h,08h,10h,08h,10h,08h
+	DB	10h,08h,10h,08h,14h,01h,0Eh,08h
+	DB	14h,01h,14h,01h,14h,01h,14h,01h
+
+; Reset enemy/boss counters, clear spawn queue and gameplay/auxiliary object tables, and
+; load SAT slot budgets
+RESET_STAGE_ENEMY_AND_AUX_STATE:
+	XOR	A
+	LD	(ACTIVE_ENEMY_OBJ_COUNT),A
+	LD	(BOSS_ENCOUNTER_ACTIVE),A
+	LD	(BOSS_COMPLETION_FLAG),A
+	LD	(DROP_CYCLE_COUNTER),A
+	CALL	CLEAR_STAGE_OBJ_SPAWN_QUEUE
+	CALL	CLEAR_GAMEPLAY_AND_AUX_OBJ_SLOTS
+	CALL	CLEAR_AUXILIARY_OBJECT_TABLE
+	JR	COMPUTE_AIMED_VELOCITY_TOWARD_GAO
+
+; Initialize D413h-D414h spawn counters to 08h and reset WAVE_SPAWN_SLOT_CURSOR (D439h) to
+; zero
+INIT_ENEMY_SPAWN_COUNTERS:
+	LD	A,08h
+	LD	HL,ENEMY_SPAWN_RESET_START
+	LD	(HL),A
+	INC	HL
+	LD	(HL),A
+	XOR	A
+	LD	(WAVE_SPAWN_SLOT_CURSOR),A
+	RET
+
+; Zero all ten 16-byte descriptors in STAGE_OBJ_SPAWN_QUEUE (D500h-D59Fh)
+CLEAR_STAGE_OBJ_SPAWN_QUEUE:
+	LD	HL,STAGE_OBJ_SPAWN_QUEUE
+	LD	BC,009Fh
+	JP	ZERO_RAM_BLOCK_HL_BC	; asm/banks/bank00.asm
+
+; Zero all gameplay (D700h) and auxiliary (DC00h) object records
+CLEAR_GAMEPLAY_AND_AUX_OBJ_SLOTS:
+	LD	HL,GAMEPLAY_OBJECT_TABLE
+	LD	BC,04FFh
+	JP	ZERO_RAM_BLOCK_HL_BC	; asm/banks/bank00.asm
+
+; Zero all eight 80h-byte auxiliary projectile records at DC00h-DFFFh
+CLEAR_AUXILIARY_OBJECT_TABLE:
+	LD	HL,AUXILIARY_OBJECT_TABLE
+	LD	BC,03FFh
+	JP	ZERO_RAM_BLOCK_HL_BC	; asm/banks/bank00.asm
+
+; Scroll, cull, and step the VRAM save/draw/restore state machine for all 16 ground-item
+; slots at CC00h
+UPDATE_GROUND_ITEM_VRAM_ICONS:
+	LD	HL,STAGE_SPAWN_TRACK_TABLE
+	LD	DE,0010h
+	LD	B,10h
+
+.loc_7b1b:
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_7b2d
+	LD	C,A
+	PUSH	HL
+	PUSH	BC
+	CALL	SCROLL_AND_CULL_GROUND_ITEM_SLOT
+	CALL	C,STEP_GROUND_ITEM_VRAM_STATE
+	POP	BC
+	POP	HL
+	LD	DE,0010h
+
+.loc_7b2d:
+	ADD	HL,DE
+	DJNZ	.loc_7b1b
+	RET
+
+; Advance ground-item record HL through state 1 (save VRAM bg), 2 (draw icon), 3 (idle), or
+; 4 (restore bg)
+STEP_GROUND_ITEM_VRAM_STATE:
+	LD	A,C
+	DEC	A
+	DEC	A
+	JR	Z,BLIT_16X16_INVENTORY_ICON_TO_VRAM
+	DEC	A
+	JP	Z,KEEP_ACTIVE_GROUND_ITEM_IDLE
+	JP	P,ERASE_COLLECTED_GROUND_ITEM_ICON
+	PUSH	HL
+	CALL	ALLOCATE_VRAM_BG_SAVE_CACHE_SLOT
+	JP	NZ,ABORT_GROUND_ITEM_BG_SAVE
+	LD	A,L
+	POP	HL
+	LD	(HL),02h
+	PUSH	DE
+	SET	02h,L
+	LD	(HL),A
+	DEC	L
+	LD	D,(HL)
+	DEC	L
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	ADD	A,(HL)
+	LD	E,A
+	EX	DE,HL
+	POP	DE
+	LD	A,04h
+	LD	BC,1010h
+	JP	COPY_VRAM_RECT_HMMM_WRAP_SRC_Y	; asm/banks/bank00.asm
+
+; Render 16x16 item/stone icon specified in SHARED_WORK_BUFFER (E801h=1-based ID, E802h=Y,
+; E803h=X) to SCREEN 5 VRAM. Standard items 01h..0Eh map to VRAM Page 1 row Y=B0h glyphs
+; 20h..2Dh (Item 0Fh / C888h is an unused hex-alignment gap; cells 2Eh..2Fh at E0B0h..FFB0h hold
+; the top 32x16 strip of Boss 4's 32x48 Asuka guardian statue graphic at E0h..FFh, B0h..DFh).
+; IDs >= 10h composite a kanji glyph over Reiboku tablet base 06h (10h..23h) or Heart Orb sphere
+; base 0Ch (24h..29h).
+BLIT_16X16_INVENTORY_ICON_TO_VRAM:
+	LD	(HL),03h
+	INC	L
+	LD	A,(HL)
+	CP	10h
+	JR	NC,BLIT_COMPOSITE_STONE_GROUND_ICON
+
+; Add 1Fh base offset to item icon index A and blit the resulting 16x16 glyph to scrolled
+; playfield VRAM
+OFFSET_AND_BLIT_GROUND_ITEM_ICON:
+	ADD	A,1Fh
+
+; Render 16x16 glyph A and LMMM-blit it with transparency to the ground item's
+; scroll-adjusted VRAM position
+LOCATE_AND_BLIT_GROUND_GLYPH_A:
+	CALL	BLIT_16X16_WIDE_KANJI_GLYPH_A
+	PUSH	DE
+	INC	L
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	ADD	A,(HL)
+	INC	L
+	LD	D,(HL)
+	LD	E,A
+	POP	HL
+	LD	BC,1010h
+	LD	A,48h
+	JP	BLIT_VRAM_RECT_LMMM_WRAP_DEST_Y	; asm/banks/bank00.asm
+
+; Draw the square or round stone base icon and overlay its mapped kanji glyph from
+; INVENTORY_ICON_TILE_INDEX_TABLE
+BLIT_COMPOSITE_STONE_GROUND_ICON:
+	PUSH	HL
+	PUSH	AF
+	CP	24h
+	LD	A,0Ch
+	JR	NC,.loc_7b87
+	LD	A,06h
+
+.loc_7b87:
+	CALL	OFFSET_AND_BLIT_GROUND_ITEM_ICON
+	POP	AF
+	POP	HL
+	SUB	10h
+	LD	DE,INVENTORY_ICON_TILE_INDEX_TABLE
+	CALL	ADD_A_TO_DE
+	LD	A,(DE)
+	JR	LOCATE_AND_BLIT_GROUND_GLYPH_A
+
+; Tile index mapping table for 16x16 inventory/stone icon rendering
+INVENTORY_ICON_TILE_INDEX_TABLE:
+	DB	08h,09h,0Ah,0Bh,0Ch,0Dh,10h,11h,12h,13h,14h,15h,16h
+	DB	17h,18h,19h,1Ah,1Bh,00h,00h,16h,17h,18h,19h,1Ah,00h
+
+; Return with no VRAM changes while a ground-item slot remains in active collectible state
+; 03h
+KEEP_ACTIVE_GROUND_ITEM_IDLE:
+	RET
+
+; Free the CB80h-CB97h cache flag, clear the CC00h item slot, and restore its saved 16x16
+; VRAM background
+ERASE_COLLECTED_GROUND_ITEM_ICON:
+	LD	(HL),00h
+	INC	L
+	INC	L
+	LD	A,(VERTICAL_SCROLL_OFFSET)
+	ADD	A,(HL)
+	LD	E,A
+	INC	L
+	LD	D,(HL)
+	INC	L
+	LD	L,(HL)
+	LD	H,CBh
+	LD	(HL),00h
+	LD	A,L
+	ADD	A,A
+	ADD	A,A
+	ADD	A,A
+	LD	C,A
+	AND	F0h
+	LD	H,A
+	LD	A,C
+	AND	08h
+	ADD	A,A
+	ADD	A,C0h
+	LD	L,A
+	LD	A,01h
+	LD	BC,1010h
+	JP	COPY_TILE_RECT_BETWEEN_VRAM_PAGES	; asm/banks/bank00.asm
+
+; Pop HL and defer ground-item state-1 background capture when all 24 VRAM cache slots are
+; busy
+ABORT_GROUND_ITEM_BG_SAVE:
+	POP	HL
+	RET
+
+; Increment ground-item Y during vertical scroll and retire the slot at Y=D0h-D7h, returning
+; carry if active
+SCROLL_AND_CULL_GROUND_ITEM_SLOT:
+	LD	A,(VERTICAL_SCROLL_DELTA)
+	OR	A
+	SCF
+	RET	Z
+	INC	L
+	INC	L
+	LD	A,(HL)
+	INC	A
+	LD	(HL),A
+	SUB	D0h
+	CP	08h
+	DEC	L
+	DEC	L
+	CCF
+	RET	C
+	LD	(HL),00h
+	SET	02h,L
+	LD	E,(HL)
+	LD	D,CBh
+	XOR	A
+	LD	(DE),A
+	RET
+
+; Load fallback status 03h into A and return when an item ID exceeds valid range (< 2Ah)
+RETURN_INVALID_ITEM_ID_CODE_03:
+	LD	A,03h
+	RET
+
+; Reset EA00h-EA1Bh and populate Gao's three [flag, Y, X] collision probe points at
+; EA00h-EA08h
+BUILD_PLAYER_HITBOX_POINTS_ARRAY:
+	LD	HL,COLLISION_AND_MSG_WORK
+	LD	DE,COLLISION_WORK_CLEAR_DST
+	LD	BC,001Bh
+	LDIR
+	LD	A,(GAO_POS_X)
+	LD	D,A
+	LD	A,(GAO_POS_Y)
+	LD	E,A
+	LD	HL,COLLISION_AND_MSG_WORK
+	LD	(HL),00h
+	INC	L
+	ADD	A,FCh
+	LD	(HL),A
+	INC	L
+	LD	(HL),D
+	INC	L
+	LD	A,F9h
+	ADD	A,E
+	LD	E,A
+	LD	A,02h
+	ADD	A,D
+	LD	(HL),00h
+	INC	L
+	LD	(HL),E
+	INC	L
+	LD	(HL),A
+	INC	L
+	LD	A,FEh
+	ADD	A,D
+	LD	(HL),00h
+	INC	L
+	LD	(HL),E
+	INC	L
+	LD	(HL),A
+	RET
+
+; Populate COLLISION_SHOT_BOX_ARRAY (EA09h) from active LOGICAL_SPRITE_OBJ_TABLE slots
+BUILD_WEAPON_HITBOX_ARRAY:
+	LD	HL,COLLISION_SHOT_BOX_ARRAY
+	EXX
+	LD	HL,LOGICAL_SPRITE_OBJ_TABLE
+	LD	B,06h
+
+.loc_7c3c:
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_7c52
+	PUSH	HL
+	POP	IX
+	EXX
+	LD	(HL),00h
+	INC	L
+	LD	A,(IX+LOBJ_Y)
+	LD	(HL),A
+	INC	L
+	LD	A,(IX+LOBJ_X)
+	LD	(HL),A
+	INC	L
+	EXX
+
+.loc_7c52:
+	LD	DE,0020h
+	ADD	HL,DE
+	DJNZ	.loc_7c3c
+	EXX
+	LD	(HL),FFh
+	EXX
+	RET
+
+; Test all active TERRAIN_OBJECT_TABLE (D000h) hitboxes against Gao's probe points and
+; weapon shots
+TEST_ALL_TERRAIN_OBJECT_HITBOXES:
+	LD	HL,TERRAIN_OBJECT_TABLE
+	LD	B,08h
+
+.loc_7c62:
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_7c6d
+	PUSH	HL
+	PUSH	BC
+	CALL	TEST_ONE_TERRAIN_OBJECT_HITBOXES
+	POP	BC
+	POP	HL
+
+.loc_7c6d:
+	LD	DE,0080h
+	ADD	HL,DE
+	DJNZ	.loc_7c62
+	RET
+
+; Evaluate single, multi-part, or hierarchical hitboxes (+50h..+77h) on terrain record HL
+; and store hit masks
+TEST_ONE_TERRAIN_OBJECT_HITBOXES:
+	INC	L
+	INC	L
+	INC	L
+	LD	A,(HL)
+	LD	E,A
+	CP	F0h
+	RET	NC
+	INC	L
+	INC	L
+	LD	D,(HL)
+	PUSH	DE
+	POP	IY
+	LD	DE,004Bh
+	ADD	HL,DE
+	LD	A,(HL)
+	OR	A
+	RET	Z
+	RLCA
+	JP	C,.loc_7cc1
+	RLCA
+	JP	C,.loc_7cbd
+	PUSH	HL
+	CALL	TEST_TERRAIN_SUBBOX_AGAINST_PROBES
+	EXX
+	LD	A,C
+	EXX
+	OR	A
+	POP	HL
+	RET	Z
+	PUSH	HL
+	CALL	STORE_TERRAIN_SUBBOX_HIT_MASK
+	POP	HL
+	LD	DE,0008h
+	LD	B,04h
+
+.loc_7ca5:
+	ADD	HL,DE
+
+.loc_7ca6:
+	LD	A,(HL)
+	OR	A
+	RET	Z
+	PUSH	HL
+	PUSH	BC
+	CALL	TEST_TERRAIN_SUBBOX_AGAINST_PROBES
+	EXX
+	LD	A,C
+	EXX
+	OR	A
+	POP	BC
+	POP	HL
+	CALL	NZ,STORE_TERRAIN_SUBBOX_HIT_MASK
+	LD	DE,0008h
+	DJNZ	.loc_7ca5
+	RET
+
+.loc_7cbd:
+	LD	B,05h
+	JR	.loc_7ca6
+
+.loc_7cc1:
+	PUSH	HL
+	CALL	TEST_TERRAIN_SUBBOX_AGAINST_PROBES
+	POP	HL
+	EXX
+	LD	A,C
+	EXX
+	OR	A
+	RET	Z
+	JP	STORE_TERRAIN_SUBBOX_HIT_MASK
+
+; Test one terrain hitbox descriptor at (HL) against Gao and/or weapon shot points in
+; EA00h-EA1Ah
+TEST_TERRAIN_SUBBOX_AGAINST_PROBES:
+	EXX
+	LD	C,00h
+	EXX
+	PUSH	IY
+	POP	DE
+	INC	L
+	LD	A,(HL)
+	ADD	A,E
+	LD	E,A
+	INC	L
+	LD	A,(HL)
+	ADD	A,D
+	LD	D,A
+	INC	L
+	LD	C,(HL)
+	INC	L
+	LD	B,(HL)
+	INC	L
+	INC	L
+	LD	A,(HL)
+	RRCA
+	JR	C,.loc_7d13
+	RRCA
+	JR	C,.loc_7d0e
+	LD	HL,COLLISION_SCRATCH_TAIL
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+
+.loc_7cf6:
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET
+
+.loc_7d0e:
+	LD	HL,COLLISION_PLAYER_BOX_HDR
+	JR	.loc_7cf6
+
+.loc_7d13:
+	RRCA
+	RET	C
+	LD	HL,COLLISION_SCRATCH_TAIL
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	JP	TEST_PROBE_POINT_AGAINST_BOX
+
+; Test one [flag, Y, X] point in EA00h-EA1Ah against box (D, E, B, C), marking hits and
+; ORing damage into C'
+TEST_PROBE_POINT_AGAINST_BOX:
+	INC	L
+	LD	A,(HL)
+	RLCA
+	RET	C
+	INC	L
+	LD	A,E
+	SUB	(HL)
+	ADD	A,C
+	INC	L
+	RET	NC
+	LD	A,D
+	SUB	(HL)
+	ADD	A,B
+	RET	NC
+	DEC	L
+	DEC	L
+	LD	(HL),01h
+	INC	L
+	INC	L
+	LD	A,L
+	CP	0Ah
+	JR	C,.loc_7d4a
+	EXX
+	LD	A,(GAO_WEAPON_FORM)
+	LD	E,A
+	LD	D,00h
+	LD	HL,WEAPON_DAMAGE_POWER_TABLE
+	ADD	HL,DE
+	LD	A,(HL)
+	OR	C
+	LD	C,A
+	EXX
+	RET
+
+.loc_7d4a:
+	LD	A,(GAO_FACING_DIR)
+	CP	02h
+	RET	NC
+	LD	A,(INV_INVISIBILITY_TIMER)
+	OR	A
+	RET	NZ
+	EXX
+	LD	A,04h
+	OR	C
+	LD	C,A
+	EXX
+	SCF
+	RET
+
+; Decrement GAO_LETHAL_HIT_ACCUM (C834h) to register player contact damage from an enemy
+; hitbox
+FLAG_GAO_OBJECT_CONTACT_DAMAGE:
+	EXX
+	LD	HL,GAO_LETHAL_HIT_ACCUM
+	DEC	(HL)
+	EXX
+	RET
+
+; Write accumulated collision hit bitmask C' into byte +05h of terrain hitbox descriptor HL
+STORE_TERRAIN_SUBBOX_HIT_MASK:
+	SET	02h,L
+	INC	L
+	CP	04h
+	EXX
+	LD	A,C
+	EXX
+	LD	(HL),A
+	RET
+
+; Per-weapon hit damage values for Gao's 6 weapon forms
+WEAPON_DAMAGE_POWER_TABLE:
+	DB	01h,02h,02h,02h,02h,08h,02h
+
+; Mark LOBJ_TYPE as FFh in LOGICAL_SPRITE_OBJ_TABLE for any player shot flagged 01h in EA09h
+RETIRE_COLLIDED_WEAPON_SHOTS:
+	LD	HL,COLLISION_SHOT_BOX_ARRAY
+	EXX
+	LD	HL,LOGICAL_SPRITE_OBJ_TABLE
+	LD	B,06h
+
+.loc_7d7e:
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_7d8d
+	EXX
+	LD	A,(HL)
+	INC	L
+	INC	L
+	INC	L
+	DEC	A
+	EXX
+	JR	NZ,.loc_7d8d
+	LD	(HL),FFh
+
+.loc_7d8d:
+	LD	DE,0020h
+	ADD	HL,DE
+	DJNZ	.loc_7d7e
+	RET
+
+; Test all 10 GAMEPLAY_OBJECT_TABLE (D700h) hitboxes against Gao and weapon shots, applying
+; hits on overlap
+TEST_ALL_GAMEPLAY_OBJECT_HITBOXES:
+	LD	HL,GAMEPLAY_OBJECT_TABLE
+	LD	B,0Ah
+
+.loc_7d99:
+	LD	A,(HL)
+	OR	A
+	JR	Z,.loc_7daa
+	PUSH	HL
+	PUSH	BC
+	CALL	TEST_ONE_GAMEPLAY_OBJECT_HITBOX
+	EXX
+	LD	A,C
+	OR	A
+	CALL	NZ,APPLY_COLLISION_HIT_TO_OBJECT_IX
+	POP	BC
+	POP	HL
+
+.loc_7daa:
+	LD	DE,0080h
+	ADD	HL,DE
+	DJNZ	.loc_7d99
+	RET
+
+; Test gameplay object HL hitbox (+70h..+74h) against Gao and/or weapon shots according to
+; OBJ_COLLISION_CLASS
+TEST_ONE_GAMEPLAY_OBJECT_HITBOX:
+	EXX
+	LD	C,00h
+	EXX
+	PUSH	HL
+	POP	IX
+	INC	L
+	INC	L
+	INC	L
+	LD	E,(HL)
+	INC	L
+	INC	L
+	LD	D,(HL)
+	LD	A,L
+	ADD	A,6Bh
+	LD	L,A
+	LD	A,(HL)
+	ADD	A,E
+	LD	E,A
+	INC	L
+	LD	A,(HL)
+	ADD	A,D
+	LD	D,A
+	INC	L
+	LD	C,(HL)
+	INC	L
+	LD	B,(HL)
+	INC	L
+	LD	A,(HL)
+	DEC	A
+	JR	Z,.loc_7e05
+	DEC	A
+	JR	Z,.loc_7e0a
+	DEC	A
+	RET	Z
+	LD	HL,COLLISION_SCRATCH_TAIL
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	CALL	C,FLAG_GAO_OBJECT_CONTACT_DAMAGE
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	CALL	C,FLAG_GAO_OBJECT_CONTACT_DAMAGE
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	CALL	C,FLAG_GAO_OBJECT_CONTACT_DAMAGE
+
+.loc_7ded:
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET	C
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	RET
+
+.loc_7e05:
+	LD	HL,COLLISION_PLAYER_BOX_HDR
+	JR	.loc_7ded
+
+.loc_7e0a:
+	LD	HL,COLLISION_SCRATCH_TAIL
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	CALL	C,FLAG_GAO_OBJECT_CONTACT_DAMAGE
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	CALL	C,FLAG_GAO_OBJECT_CONTACT_DAMAGE
+	CALL	TEST_PROBE_POINT_AGAINST_BOX
+	CALL	C,FLAG_GAO_OBJECT_CONTACT_DAMAGE
+	RET
+
+; Record LAST_HIT_ENEMY_TYPE and apply weapon or powered-contact hit mask C to object IX (or
+; linked type 0Ah/0Bh)
+APPLY_COLLISION_HIT_TO_OBJECT_IX:
+	LD	A,(IX+OBJ_TYPE)
+	LD	(LAST_HIT_ENEMY_TYPE),A
+	CP	0Ah
+	JP	Z,.loc_7e47
+	CP	0Bh
+	JP	Z,.loc_7e59
+	LD	A,(INV_INVINCIBLE_AURA_TIMER)
+	OR	A
+	JR	Z,.loc_7e3a
+	BIT	02h,C
+	JR	NZ,.loc_7e3e
+
+.loc_7e3a:
+	LD	(IX+OBJ_HIT_REACTION),C
+	RET
+
+.loc_7e3e:
+	LD	(IX+OBJ_HIT_POINTS),01h
+	LD	(IX+OBJ_HIT_REACTION),02h
+	RET
+
+.loc_7e47:
+	LD	A,(INV_INVINCIBLE_AURA_TIMER)
+	OR	A
+	JR	Z,.loc_7e52
+	BIT	02h,C
+	JP	NZ,DAMAGE_SEGMENTED_ENEMY_TAIL_PRESERVE_IX	; asm/banks/bank02.asm
+
+.loc_7e52:
+	LD	A,C
+	AND	0Bh
+	RET	Z
+	JP	DAMAGE_SEGMENTED_ENEMY_TAIL_PRESERVE_IX	; asm/banks/bank02.asm
+
+.loc_7e59:
+	LD	A,(INV_INVINCIBLE_AURA_TIMER)
+	OR	A
+	RET	Z
+	PUSH	IX
+	LD	L,(IX+OBJ_LINK_PTR_LO)
+	LD	H,(IX+OBJ_LINK_PTR_HI)
+	PUSH	HL
+	POP	IX
+	CALL	DAMAGE_SEGMENTED_ENEMY_TAIL_PRESERVE_IX
+	POP	IX
+	RET
+
+; Scan all 16 CC00h ground-item slots in active state 03h and collect any icon overlapping
+; Gao
+CHECK_GROUND_ITEM_PICKUPS_BY_GAO:
+	LD	A,(GAO_MODE)
+	CP	02h
+	RET	Z
+	LD	A,(GAO_RENDER_Y)
+	SUB	02h
+	LD	E,A
+	LD	A,(GAO_RENDER_X)
+	SUB	02h
+	LD	D,A
+	EXX
+	LD	HL,STAGE_SPAWN_TRACK_TABLE
+	LD	B,10h
+
+.loc_7e87:
+	LD	A,(HL)
+	CP	03h
+	JR	NZ,.loc_7e94
+	PUSH	HL
+	PUSH	BC
+	CALL	TEST_AND_COLLECT_ONE_GROUND_ITEM
+	EXX
+	POP	BC
+	POP	HL
+
+.loc_7e94:
+	LD	DE,0010h
+	ADD	HL,DE
+	DJNZ	.loc_7e87
+	RET
+
+; Check 14h-by-14h overlap between Gao and ground-item slot HL, applying the pickup and +1
+; score on contact
+TEST_AND_COLLECT_ONE_GROUND_ITEM:
+	INC	L
+	INC	L
+	LD	A,(HL)
+	EX	AF,AF'
+	INC	L
+	LD	A,(HL)
+	EXX
+	SUB	D
+	ADD	A,14h
+	RET	NC
+	EX	AF,AF'
+	SUB	E
+	ADD	A,14h
+	RET	NC
+	EXX
+	PUSH	AF
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	CALL	APPLY_COLLECTED_GROUND_ITEM_HL
+	LD	HL,0001h
+	CALL	ADD_HL_TO_PLAYER_SCORE_BCD
+	POP	BC
+	POP	DE
+	POP	HL
+	POP	AF
+	RET
+
+; Set ground-item slot HL to erase state 04h and dispatch its consumable/equipment effect or
+; stone pickup
+APPLY_COLLECTED_GROUND_ITEM_HL:
+	DEC	L
+	DEC	L
+	LD	A,(HL)
+	LD	C,A
+	DEC	L
+	LD	(HL),04h
+	CP	0Fh
+	JR	NC,COLLECT_STONE_OR_ORB_INVENTORY_ITEM
+	PUSH	AF
+	LD	HL,0005h
+	CALL	ADD_HL_TO_PLAYER_SCORE_BCD
+	POP	AF
+	DEC	A
+	CALL	INLINE_WORD_DISPATCH
+
+; 14-entry inline DW dispatch table applying collected standard item effects (Items 01h..0Eh):
+; [06h] (Item 07h, C868h: UNUSED Turtle Shell shield item, glyph 26h) and [0Bh] (Item 0Ch,
+; C87Ch: Heart Orb base icon & unused standalone orb buff slot, glyph 2Bh) have 0 stage spawns
+; and 0 enemy drops as standalone pickups.
+ITEM_EFFECT_APPLY_HANDLER_TABLE:
+	DW	APPLY_ITEM_EFFECT_00	; [00h] Item 01h: Straw Sandals (speed +1, cap 03h)
+	DW	APPLY_ITEM_EFFECT_01	; [01h] Item 02h: Maple Leaf (instant screen wipe)
+	DW	APPLY_ITEM_EFFECT_02	; [02h] Item 03h: Medicine Jar (timed invisibility, 0Dh ticks)
+	DW	APPLY_ITEM_EFFECT_03	; [03h] Item 04h: Ladybug (rapid-fire +1, cap 03h)
+	DW	APPLY_ITEM_EFFECT_04	; [04h] Item 05h: Gourd (timed invincible body-ram aura, 0Dh ticks)
+	DW	APPLY_ITEM_EFFECT_05	; [05h] Item 06h: Reiboku base / +10 feather drop placeholder
+	DW	APPLY_ITEM_EFFECT_06	; [06h] Item 07h: UNUSED Turtle Shell shield (wired to 0Dh buff timer!)
+	DW	APPLY_ITEM_EFFECT_05	; [07h] Item 08h: Block base / +1 feather drop placeholder
+	DW	APPLY_ITEM_EFFECT_05	; [08h] Item 09h: Stone-block Storage Box (cap 05h)
+	DW	APPLY_ITEM_EFFECT_09	; [09h] Item 0Ah: F4 Stage Map scroll (sets per-stage bitmask)
+	DW	APPLY_ITEM_EFFECT_09	; [0Ah] Item 0Bh: F5 Era Map piece scroll (sets per-sector bitmask)
+	DW	APPLY_ITEM_EFFECT_00	; [0Bh] Item 0Ch: Heart Orb base / UNUSED standalone orb buff (cap 01h)
+	DW	APPLY_ITEM_EFFECT_0C	; [0Ch] Item 0Dh: Hourglass (5Ah time-stop timer + fanfare 4Ch)
+	DW	APPLY_ITEM_EFFECT_0D	; [0Dh] Item 0Eh: Compass (enables F5 era warp, cap 01h)
+
+; Increment inventory slot for stone/orb item ID A (0Fh-29h), play sound 28h, and add 000Ah
+; to score
+COLLECT_STONE_OR_ORB_INVENTORY_ITEM:
+	CP	2Ah
+	JP	NC,RETURN_INVALID_ITEM_ID_CODE_03
+	CALL	INCREMENT_ITEM_SLOT_IF_BELOW_CAP
+	LD	A,28h
+	CALL	QUEUE_SOUND_COMMAND_IF_UNLOCKED
+	LD	HL,000Ah
+	JP	ADD_HL_TO_PLAYER_SCORE_BCD	; asm/banks/bank00.asm
+
+; Inventory / relic item activation effect handler 01h
+APPLY_ITEM_EFFECT_01:
+	LD	A,01h
+	LD	(SCREEN_WIPE_ITEM_REQ),A
+	RET
+
+; Inventory / relic item activation effect handler 0Ch
+APPLY_ITEM_EFFECT_0C:
+	CALL	INCREMENT_ITEM_SLOT_IF_BELOW_CAP
+	LD	(HL),5Ah
+	LD	A,(SND_BGM_SAVED_LOCK)
+	OR	A
+	RET	NZ
+	LD	A,4Ch
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; Inventory / relic item activation effect handler 02h
+APPLY_ITEM_EFFECT_02:
+	XOR	A
+	LD	(INV_INVINCIBLE_AURA_TIMER),A
+	JR	APPLY_ITEM_EFFECT_06
+
+; Inventory / relic item activation effect handler 04h
+APPLY_ITEM_EFFECT_04:
+	XOR	A
+	LD	(INV_INVISIBILITY_TIMER),A
+
+; Shared 0Dh-tick (~6.9s) timer-init tail for Medicine Jar (03h) and Gourd (05h); also wired
+; to unused Item 07h ([06h], C868h Turtle Shell shield, cap 03h)
+APPLY_ITEM_EFFECT_06:
+	CALL	INCREMENT_ITEM_SLOT_IF_BELOW_CAP
+	LD	(HL),0Dh
+	LD	A,18h
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; Inventory / relic item activation effect handler 00h
+APPLY_ITEM_EFFECT_00:
+	CALL	INCREMENT_ITEM_SLOT_IF_BELOW_CAP
+	IF	HINOTORI_ENHANCED = 00h
+	CALL	C,NOOP_SPEED_BOOTS_PICKUP_HOOK
+	ENDIF
+	LD	A,18h
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; Inventory / relic item activation effect handler 09h
+APPLY_ITEM_EFFECT_09:
+	CALL	INCREMENT_ITEM_SLOT_IF_BELOW_CAP
+	RET	NC
+	INC	HL
+	LD	A,(LEVEL_NUMBER)
+	LD	B,A
+	CALL	STAGE_NUM_B_TO_BITMASK_A
+	OR	(HL)
+	LD	(HL),A
+	LD	A,18h
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; Inventory / relic item activation effect handler 0Dh
+APPLY_ITEM_EFFECT_0D:
+	CALL	INCREMENT_ITEM_SLOT_IF_BELOW_CAP
+	LD	A,18h
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; Inventory / relic item activation effect handler 05h
+APPLY_ITEM_EFFECT_05:
+	CALL	INCREMENT_ITEM_SLOT_IF_BELOW_CAP
+	LD	A,18h
+	JP	QUEUE_SOUND_COMMAND_IF_UNLOCKED	; asm/banks/bank00.asm
+
+; Increment inventory quantity at slot C if below ITEM_SLOT_MAX_CAPACITY_TABLE and return
+; carry set
+INCREMENT_ITEM_SLOT_IF_BELOW_CAP:
+	CALL	CHECK_ITEM_SLOT_C_BELOW_CAPACITY
+	RET	NC
+	INC	(HL)
+	SCF
+	RET
+
+; Locate 4-byte inventory slot HL for 1-based item C and return carry set if quantity is
+; below max capacity
+CHECK_ITEM_SLOT_C_BELOW_CAPACITY:
+	LD	A,C
+	DEC	A
+	ADD	A,A
+	ADD	A,A
+	LD	L,A
+	LD	H,00h
+	LD	DE,INVENTORY_SLOTS_BASE
+	ADD	HL,DE
+	LD	A,(HL)
+	EX	DE,HL
+	LD	B,00h
+	LD	HL,ITEM_SLOT_MAX_CAPACITY_TABLE
+	ADD	HL,BC
+	CP	(HL)
+	EX	DE,HL
+	RET
+	IF	HINOTORI_ENHANCED = 00h
+
+; No-op return stub called when incrementing inventory slot 0 in APPLY_ITEM_EFFECT_00
+NOOP_SPEED_BOOTS_PICKUP_HOOK:
+	RET
+	ENDIF
+
+; 40-byte maximum quantity cap table indexed by 1-based item ID C (byte 0 = padding 01h;
+; +01h..+27h cover Items 01h..27h, while Item 28h reads the first byte 3Eh of APPLY_ITEM_EFFECT_03!
+; Unused Item 07h [+07h] still carries stack cap 03h; unused Item 0Ch [+0Ch] carries cap 01h)
+ITEM_SLOT_MAX_CAPACITY_TABLE:
+	DB	01h,03h,FFh,FFh,03h,FFh,C8h,03h,C8h,05h
+	DB	06h,06h,01h,FFh,01h,01h,01h,01h,01h,01h
+	DB	01h,01h,01h,01h,01h,01h,01h,01h,01h,01h
+	DB	01h,01h,01h,01h,01h,01h,01h,01h,01h,01h
+
+; Inventory / relic item activation effect handler 03h
+APPLY_ITEM_EFFECT_03:
+	CALL	INCREMENT_ITEM_SLOT_IF_BELOW_CAP
+	LD	A,18h
+	CALL	QUEUE_SOUND_COMMAND_IF_UNLOCKED
+
+; Update maximum concurrent weapon shots and fire cooldown from INV_RAPID_FIRE_SLOT
+; (C85Ch)
+REFRESH_GAO_RAPID_FIRE_PARAMETERS:
+	LD	A,(INV_RAPID_FIRE_SLOT)
+	LD	DE,RAPID_FIRE_SHOT_LIMIT_TABLE
+	CALL	READ_WORD_FROM_DE_TABLE_A
+	LD	A,E
+	LD	(GAO_SPRITE_PART_COUNT),A
+	LD	A,D
+	LD	(MAX_CONCURRENT_SHOTS),A
+	RET
+
+; 3 x 2-byte [max_shots, cooldown] pairs indexed by INV_RAPID_FIRE_SLOT
+RAPID_FIRE_SHOT_LIMIT_TABLE:
+	DB	01h,12h,03h,14h,06h,16h
+	IF	HINOTORI_ENHANCED = 00h
+
+; Unreferenced inverse of STAGE_NUM_B_TO_BITMASK_A: converts single-bit mask A into 1-based index B
+UNUSED_BITMASK_A_TO_STAGE_NUM_B:
+	LD	B,00h
+	OR	A
+	RET	Z
+
+.loc_7fc5:
+	INC	B
+	RRCA
+	JR	NC,.loc_7fc5
+	RET
+	ENDIF
+
+; Convert 1-based index B (1..8) into single-bit mask 1 << (B - 1) in A
+STAGE_NUM_B_TO_BITMASK_A:
+	LD	A,80h
+
+.loc_7fcc:
+	RLCA
+	DJNZ	.loc_7fcc
+	RET
+
+; Build Gao's 0Ch-by-10h body box at (X-6, Y-16) and test all 8 auxiliary enemy projectiles
+; for player hits
+TEST_AUX_PROJECTILES_HITTING_GAO:
+	LD	A,(GAO_FACING_DIR)
+	CP	03h
+	RET	NC
+	LD	A,(INV_INVISIBILITY_TIMER)
+	OR	A
+	RET	NZ
+	LD	A,(GAO_POS_Y)
+	SUB	10h
+	LD	E,A
+	LD	A,(GAO_POS_X)
+	SUB	06h
+	LD	D,A
+	EXX
+
+; Scan all 8 auxiliary object records (DC00h) against blast/interaction bounding box
+TEST_AUX_OBJECTS_IN_EXPLOSION_BOX:
+	LD	IX,AUXILIARY_OBJECT_TABLE
+	LD	B,08h
+
+.loc_7fee:
+	LD	A,(IX+OBJ_TYPE)
+	OR	A
+	JR	Z,.loc_7ffa
+	PUSH	BC
+	CALL	CHECK_ONE_OBJECT_AGAINST_BLAST_BOX
+	EXX
+	POP	BC
+
+.loc_7ffa:
+	LD	DE,0080h
+	ADD	IX,DE
+	DJNZ	.loc_7fee
+	RET
