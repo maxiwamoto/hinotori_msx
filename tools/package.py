@@ -40,7 +40,7 @@ def instructions(assembler: str) -> str:
               "BiFi also supplied the Level 4 tablet and Game Master fixes.",
               "Original game and translation material retain their respective ownership.",
               "https://msxtranslations.com/hinotori.php", "",
-              "Repository: https://github.com/maxiwamoto/hinotori_msx (private during preparation).", ""]
+              "Repository: https://github.com/maxiwamoto/hinotori_msx", ""]
     return "\n".join(lines)
 
 

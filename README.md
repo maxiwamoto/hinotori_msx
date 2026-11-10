@@ -4,8 +4,6 @@ Commented Z80 disassembly of **Hi no Tori: Houou-hen** (Konami, 1987),
 with an Enhanced edition for MSX2/MSX2+. One maintained source tree contains
 the sixteen physical 8 KiB ROM banks and their build dependencies.
 
-This release repository is private while it is being prepared.
-
 ## Four targets
 
 | Target | Description | SHA-1 (131,072 bytes each) |
